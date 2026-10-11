@@ -1,5 +1,21 @@
 # ============================================================
-#  Dependencias y cachés de herramientas
+#  Next.js
+# ============================================================
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# ============================================================
+#  Archivos publicados generados en tiempo de compilacion
+#  (se copian desde data/ y assets/ con preparar_publico.mjs;
+#   no se duplican en Git para no inflar el repositorio)
+# ============================================================
+public/datos/
+public/modelos/
+
+# ============================================================
+#  Dependencias y caches de herramientas
 # ============================================================
 node_modules/
 .npm-cache/
@@ -13,7 +29,7 @@ env/
 .pytest_cache/
 
 # ============================================================
-#  Salidas de build web
+#  Salidas de build
 # ============================================================
 dist/
 build/
@@ -51,6 +67,7 @@ desktop.ini
 # ============================================================
 .env
 .env.*
+!.env.example
 CLAVES.txt
 *.pem
 *.key

@@ -1,0 +1,232 @@
+/* Tipografías: se cargan por CSS en tiempo de ejecución para que el
+   build no dependa de la red (next/font las descarga al compilar). */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+/* ==================================================================
+   SISTEMA DE DISEÑO — TIERRA BOMBA 3D
+   Paleta derivada del territorio: mar Caribe, arena, manglar y grafito.
+   ================================================================== */
+@theme {
+  /* --- Azul océano profundo --- */
+  --color-oceano-950: #08171f;
+  --color-oceano-900: #0c212d;
+  --color-oceano-800: #102c3b;
+  --color-oceano-700: #173d50;
+  --color-oceano-600: #1e5068;
+
+  /* --- Turquesa (agua somera, acento principal) --- */
+  --color-turquesa-600: #2a8f89;
+  --color-turquesa-500: #39b8b0;
+  --color-turquesa-400: #5fcbc4;
+  --color-turquesa-300: #96ded9;
+
+  /* --- Arena (acento cálido, datos del terreno) --- */
+  --color-arena-600: #b8a077;
+  --color-arena-500: #d9c6a3;
+  --color-arena-400: #e4d7bd;
+  --color-arena-300: #efe7d7;
+
+  /* --- Blanco cálido (superficies claras) --- */
+  --color-hueso-50: #fbfaf7;
+  --color-hueso-100: #f6f4ef;
+  --color-hueso-200: #ebe7de;
+
+  /* --- Grafito (texto y UI neutra) --- */
+  --color-grafito-900: #161d21;
+  --color-grafito-800: #202a30;
+  --color-grafito-700: #2d3a42;
+  --color-grafito-600: #46545d;
+  --color-grafito-500: #6b7a83;
+  --color-grafito-400: #9aa7ae;
+
+  /* --- Verde manglar (ambiente) --- */
+  --color-manglar-700: #3d6350;
+  --color-manglar-600: #527f68;
+  --color-manglar-500: #6b9a80;
+
+  /* --- Semánticos de estado de validación --- */
+  --color-oficial: #2f7dd1;
+  --color-verificado: #39b8b0;
+  --color-pendiente: #d99b39;
+  --color-simulado: #b06fc4;
+
+  /* --- Tipografía --- */
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* --- Escala tipográfica editorial --- */
+  --text-display: clamp(2.75rem, 7vw, 6.5rem);
+  --text-display--line-height: 0.94;
+  --text-display--letter-spacing: -0.03em;
+
+  --text-titulo: clamp(1.75rem, 3.5vw, 3rem);
+  --text-titulo--line-height: 1.08;
+  --text-titulo--letter-spacing: -0.02em;
+
+  /* --- Sombras y radios --- */
+  --radius-panel: 0.875rem;
+  --shadow-panel: 0 1px 2px rgb(8 23 31 / 0.06), 0 8px 24px -8px rgb(8 23 31 / 0.18);
+  --shadow-flotante: 0 2px 4px rgb(8 23 31 / 0.08), 0 16px 48px -12px rgb(8 23 31 / 0.32);
+}
+
+/* ==================================================================
+   BASE
+   ================================================================== */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-oceano-950);
+    color: var(--color-hueso-100);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Accesibilidad: foco siempre visible y consistente */
+  :focus-visible {
+    outline: 2px solid var(--color-turquesa-500);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background-color: var(--color-turquesa-500);
+    color: var(--color-oceano-950);
+  }
+
+  /* Barras de desplazamiento discretas, acordes al panel oscuro */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-grafito-600) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-grafito-600);
+    border-radius: 4px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-grafito-500);
+  }
+
+  /* Respeta a quien pide menos movimiento */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ==================================================================
+   COMPONENTES DE APOYO
+   ================================================================== */
+@layer components {
+  /* Panel flotante translúcido: el patrón base de toda la interfaz */
+  .panel {
+    background-color: color-mix(in oklab, var(--color-oceano-900) 88%, transparent);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid color-mix(in oklab, var(--color-hueso-100) 10%, transparent);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-flotante);
+  }
+
+  .panel-claro {
+    background-color: color-mix(in oklab, var(--color-hueso-50) 92%, transparent);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid color-mix(in oklab, var(--color-grafito-800) 12%, transparent);
+    color: var(--color-grafito-900);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  /* Etiqueta monoespaciada para coordenadas y metadatos */
+  .dato-mono {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Regla fina divisoria */
+  .regla {
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in oklab, var(--color-hueso-100) 18%, transparent),
+      transparent
+    );
+  }
+}
+
+/* ==================================================================
+   MAPLIBRE — ajustes de integración con la interfaz
+   ================================================================== */
+.maplibregl-ctrl-attrib {
+  font-family: var(--font-sans) !important;
+  font-size: 10px !important;
+  background: color-mix(in oklab, var(--color-oceano-950) 75%, transparent) !important;
+  color: var(--color-grafito-400) !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--color-turquesa-400) !important;
+}
+
+.maplibregl-popup-content {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.maplibregl-popup-tip {
+  display: none !important;
+}
+
+.maplibregl-ctrl-group {
+  background: color-mix(in oklab, var(--color-oceano-900) 90%, transparent) !important;
+  border: 1px solid color-mix(in oklab, var(--color-hueso-100) 12%, transparent) !important;
+  backdrop-filter: blur(12px);
+}
+
+.maplibregl-ctrl-group button {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid color-mix(in oklab, var(--color-hueso-100) 10%, transparent) !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) opacity(0.75);
+}
+
+.maplibregl-ctrl-group button:hover {
+  background-color: color-mix(in oklab, var(--color-turquesa-500) 20%, transparent) !important;
+}

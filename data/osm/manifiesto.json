@@ -1,0 +1,114 @@
+{
+  "actualizado": "2026-10-11",
+  "fuente": "OpenStreetMap",
+  "capas": {
+    "usos_suelo": {
+      "titulo": "Usos del suelo",
+      "descripcion": "Clasificacion del suelo segun OpenStreetMap.",
+      "categoria": "territorio",
+      "color": "#527F68",
+      "archivo": "data/osm/usos_suelo.geojson",
+      "entidades": 13,
+      "geometrias": {
+        "puntos": 0,
+        "lineas": 0,
+        "poligonos": 13,
+        "relaciones": 0,
+        "sinGeometria": 0
+      },
+      "fecha_descarga": "2026-10-11",
+      "fuente": "OpenStreetMap",
+      "attribution": "(c) OpenStreetMap contributors",
+      "licencia": "ODbL 1.0",
+      "estado_validacion": "colaborativo-verificado",
+      "peso_kb": 22
+    },
+    "hidrografia": {
+      "titulo": "Hidrografia",
+      "descripcion": "Cursos de agua, canos y cuerpos de agua.",
+      "categoria": "ambiente",
+      "color": "#102C3B",
+      "archivo": "data/osm/hidrografia.geojson",
+      "entidades": 43,
+      "geometrias": {
+        "puntos": 1,
+        "lineas": 2,
+        "poligonos": 40,
+        "relaciones": 1,
+        "sinGeometria": 0
+      },
+      "fecha_descarga": "2026-10-11",
+      "fuente": "OpenStreetMap",
+      "attribution": "(c) OpenStreetMap contributors",
+      "licencia": "ODbL 1.0",
+      "estado_validacion": "colaborativo-verificado",
+      "peso_kb": 46
+    },
+    "edificaciones": {
+      "titulo": "Edificaciones",
+      "descripcion": "Volumetrias construidas registradas en OpenStreetMap.",
+      "categoria": "construccion",
+      "color": "#D9C6A3",
+      "archivo": "data/osm/edificaciones.geojson",
+      "entidades": 827,
+      "geometrias": {
+        "puntos": 0,
+        "lineas": 0,
+        "poligonos": 827,
+        "relaciones": 1,
+        "sinGeometria": 0
+      },
+      "fecha_descarga": "2026-10-11",
+      "fuente": "OpenStreetMap",
+      "attribution": "(c) OpenStreetMap contributors",
+      "licencia": "ODbL 1.0",
+      "estado_validacion": "colaborativo-verificado",
+      "peso_kb": 231
+    },
+    "vias": {
+      "titulo": "Movilidad",
+      "descripcion": "Vias, senderos, accesos y conexiones peatonales.",
+      "categoria": "movilidad",
+      "color": "#F6F4EF",
+      "archivo": "data/osm/vias.geojson",
+      "entidades": 304,
+      "geometrias": {
+        "puntos": 0,
+        "lineas": 304,
+        "poligonos": 0,
+        "relaciones": 0,
+        "sinGeometria": 0
+      },
+      "fecha_descarga": "2026-10-11",
+      "fuente": "OpenStreetMap",
+      "attribution": "(c) OpenStreetMap contributors",
+      "licencia": "ODbL 1.0",
+      "estado_validacion": "colaborativo-verificado",
+      "peso_kb": 129
+    },
+    "natural": {
+      "titulo": "Elementos naturales",
+      "descripcion": "Vegetacion, playas, humedales y otros elementos naturales. Los manglares solo aparecen si estan documentados en OpenStreetMap.",
+      "categoria": "ambiente",
+      "color": "#527F68",
+      "archivo": "data/osm/natural.geojson",
+      "entidades": 100,
+      "geometrias": {
+        "puntos": 3,
+        "lineas": 0,
+        "poligonos": 97,
+        "relaciones": 1,
+        "sinGeometria": 0
+      },
+      "fecha_descarga": "2026-10-11",
+      "fuente": "OpenStreetMap",
+      "attribution": "(c) OpenStreetMap contributors",
+      "licencia": "ODbL 1.0",
+      "estado_validacion": "colaborativo-verificado",
+      "peso_kb": 147
+    }
+  },
+  "osm_relacion_isla": 11226348,
+  "total_entidades": 1287,
+  "nota": "Manifiesto de procedencia. Generado automaticamente por scripts/datos/descargar_osm_tierrabomba.mjs. No editar a mano."
+}

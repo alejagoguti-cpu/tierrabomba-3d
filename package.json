@@ -1,19 +1,47 @@
 {
   "name": "tierrabomba-3d",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Pipeline geoespacial y modelo 3D web para la tesis de reubicacion y resiliencia costera en Tierra Bomba, Cartagena",
-  "type": "module",
+  "description": "TIERRA BOMBA 3D - Plataforma de informacion territorial, arquitectura y transformacion de la isla de Tierra Bomba, Cartagena de Indias",
   "license": "MIT",
   "author": "Alejandra Gomez & Ana Casas",
   "scripts": {
+    "predev": "node scripts/datos/preparar_publico.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/datos/preparar_publico.mjs",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "datos:osm": "node scripts/datos/descargar_osm_tierrabomba.mjs",
+    "datos:limite": "node scripts/datos/obtener_limite_osm.mjs",
+    "datos:publico": "node scripts/datos/preparar_publico.mjs",
     "convert": "node scripts/web/convertir_obj_a_glb.mjs",
     "inspector": "node scripts/web/inspeccionar_glb.mjs assets/modelos/TIERRABOMBA.glb",
-    "dev": "node scripts/web/servir.mjs",
-    "limite-osm": "node scripts/datos/obtener_limite_osm.mjs",
-    "terria": "node scripts/web/servir.mjs"
+    "visor": "node scripts/web/servir.mjs"
+  },
+  "dependencies": {
+    "@turf/area": "7.4.0",
+    "@turf/helpers": "7.4.0",
+    "@turf/length": "7.4.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.55.0",
+    "maplibre-gl": "^6.13.0",
+    "motion": "^14.1.0",
+    "next": "15.5.27",
+    "proj4": "^2.22.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1",
+    "shapefile": "^0.6.6",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
-    "obj2gltf": "^3.2.0"
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "obj2gltf": "^3.2.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5.6.0"
   }
 }

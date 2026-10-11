@@ -1,60 +1,170 @@
-# 🏝️ Tierra Bomba 3D
+# 🏝️ TIERRA BOMBA 3D
 
-> **Pipeline geoespacial y modelo 3D web para la tesis de reubicación y resiliencia costera.**
-> Isla de Tierra Bomba, Cartagena de Indias, Colombia.
+> **Plataforma de información territorial, arquitectura y transformación.**
+> Isla de Tierra Bomba · Cartagena de Indias, Colombia.
 
-[![QGIS](https://img.shields.io/badge/QGIS-3.x-589632?style=flat&logo=qgis)](https://qgis.org/)
-[![Qgis2threejs](https://img.shields.io/badge/Qgis2threejs-plugin-blue)](https://github.com/minorua/Qgis2threejs)
-[![FreeCAD](https://img.shields.io/badge/FreeCAD-1.x-CB333B?style=flat&logo=freecad)](https://www.freecad.org/)
-[![Three.js](https://img.shields.io/badge/Three.js-WebGL-black?style=flat&logo=three.js)](https://threejs.org/)
-[![kepler.gl](https://img.shields.io/badge/kepler.gl-an%C3%A1lisis-6A5ACD)](https://github.com/keplergl/kepler.gl)
-[![TerriaMap](https://img.shields.io/badge/TerriaMap-globo%203D-2E8B57)](https://github.com/TerriaJS/TerriaMap)
-[![Git LFS](https://img.shields.io/badge/Git-LFS-F64935?style=flat&logo=git-lfs)](https://git-lfs.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
+[![MapLibre](https://img.shields.io/badge/MapLibre_GL-6.x-295DAA?style=flat)](https://maplibre.org/)
+[![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4.x-06B6D4?style=flat&logo=tailwindcss)](https://tailwindcss.com/)
+[![OSM](https://img.shields.io/badge/Datos-OpenStreetMap-7EBC6F?style=flat&logo=openstreetmap)](https://www.openstreetmap.org/)
+[![Catastro](https://img.shields.io/badge/Datos-Catastro_oficial-2F7DD1?style=flat)](#-origen-de-los-datos)
+
+**Sitio publicado:** <https://alejagoguti-cpu.github.io/tierrabomba-3d/>
 
 ---
 
-## 📌 Qué es este repositorio
+## 📌 Qué es
 
-Este repositorio es el **componente geoespacial y tridimensional** del proyecto de grado.
-Es el gemelo técnico del repositorio [`tesis`](https://github.com/alejagoguti-cpu/tesis), que contiene la plataforma web.
+Un atlas digital tridimensional de la isla de Tierra Bomba. Permite explorar el territorio, sus
+edificaciones, equipamientos, infraestructura y condiciones ambientales en un mismo entorno, con
+datos **reales, georreferenciados y trazables**.
 
-| Repositorio | Responsabilidad |
+El principio que gobierna todo el proyecto: **no se inventa ningún dato**. Lo que no existe se
+declara como ausente; lo que es una estimación se marca como estimación.
+
+---
+
+## ✅ Estado actual
+
+### Funciona y está verificado
+
+| Módulo | Ruta | Estado |
+|---|---|---|
+| Portada narrativa con scroll cinematográfico | `/` | ✅ 6 escenas, cámara y capas reales |
+| Visor territorial 3D | `/explorar` | ✅ Terreno real, 13 capas, medición, fichas, vistas guardadas |
+| Catálogo de datos y procedencia | `/datos` | ✅ Metadatos, licencias, descargas, manifiestos |
+| Participación ciudadana | `/participa` | ✅ Genera informe estructurado descargable |
+
+### Fases siguientes
+
+| Módulo | Ruta | Qué falta |
+|---|---|---|
+| Equipamientos | `/equipamientos` | Inventario oficial (la descarga de Overpass está fallando por saturación) |
+| Construcciones | `/construcciones` | Explorador tabular con filtros y exportación |
+| Proyectos | `/proyectos` | Visor glTF/IFC del modelo arquitectónico |
+| Ambiente | `/ambiente` | Línea de costa histórica y ecosistemas oficiales |
+| Análisis | `/analisis` | Pendientes, cobertura y accesibilidad con Turf.js |
+
+Las rutas aún no implementadas **no muestran botones decorativos**: explican qué harán, qué datos
+necesitan y en qué estado están.
+
+---
+
+## 🌍 Origen de los datos
+
+### 1. OpenStreetMap — colaborativo
+
+Descargado vía Overpass API con `npm run datos:osm`. **1.287 entidades**:
+
+| Capa | Entidades |
 |---|---|
-| [`tesis`](https://github.com/alejagoguti-cpu/tesis) | Plataforma web interactiva, visor BIM, planimetría, ciclo hídrico |
-| **`tierrabomba-3d`** (este) | **Terreno, topografía, análisis GIS, modelado 3D y exportación web** |
+| Edificaciones | 827 |
+| Vías y senderos | 304 |
+| Elementos naturales | 100 |
+| Hidrografía | 43 |
+| Usos del suelo | 13 |
 
-**Cadena de trabajo:**
+Licencia **ODbL 1.0**. Atribución obligatoria: **© OpenStreetMap contributors**.
 
-```
-                        ┌──►  GLB optimizado  ──►  visor three.js      (presentación)
-Revit (BIM) ──► OBJ ────┤
-                        └──►  glTF georreferenciado ──►  TerriaMap    (territorio 3D)
+### 2. Catastro oficial de Cartagena — institucional
 
-QGIS (GIS)  ──►  análisis en UTM 18N  ──┬──►  Qgis2threejs  ──►  escena HTML
-                                        ├──►  GeoJSON 4326  ──►  kepler.gl   (análisis)
-                                        └──►  catálogo JSON ──►  TerriaMap
+Importado de `Cartografia_Catastro_AMB_Cartagena.zip` (1,16 GB) con `node scripts/datos/importar_catastro.mjs`.
+**10.050 entidades** recortadas al ámbito de la isla:
 
-FreeCAD     ──►  sólidos del terreno, aljibe y cubierta
-```
+| Capa | Entidades | De un total municipal de |
+|---|---|---|
+| Unidades de construcción | 4.505 | 375.048 |
+| **Construcciones** | **2.714** | 185.161 |
+| Predios | 2.584 | 161.696 |
+| Manzanas | 238 | 9.526 |
+| Barrios | 4 | 217 |
+| Veredas | 4 | 251 |
+| Sectores rurales | 1 | 254 |
 
-**Tres visores, tres propósitos distintos** (no son alternativas, se complementan):
+### ⚠️ Dos trampas técnicas que hubo que resolver
 
-| Herramienta | Pregunta que responde | Precisión geográfica | Requiere cuenta |
-|---|---|---|---|
-| Visor propio (three.js) | ¿Cómo es el edificio? | Ninguna (coordenadas locales) | No |
-| **kepler.gl** | ¿Qué dicen los datos? | WGS 84 / Web Mercator | Mapbox (a veces) |
-| **TerriaMap** | ¿Dónde está todo esto? | Coordenadas absolutas + globo 3D | No |
+**1. El sistema de coordenadas.** Los shapefiles no vienen en WGS 84. Su `.prj` declara
+`MAGNA_SIRGAS_Origen_Nacional`: proyección Transversa de Mercator con meridiano central −73,
+falso este 5.000.000 y falso norte 2.000.000 — **EPSG:9377**, el sistema oficial colombiano.
+Cargarlos sin convertir los situaría a cientos de kilómetros de su posición real. Se reproyectan
+con `proj4` (elipsoide GRS80).
+
+**2. El recorte.** Los datos cubren todo el municipio de Cartagena. Un primer intento con una caja
+envolvente generosa capturó **77.284 construcciones** — el casco urbano de Cartagena, no la isla.
+La versión final filtra contra el polígono real de la isla con un margen de 250 m, y baja a las
+2.714 que sí pertenecen a Tierra Bomba.
 
 ---
 
-## 🌊 Contexto del proyecto
+## 🔍 Hallazgo principal
 
-* **Ubicación:** Isla de Tierra Bomba, Cartagena de Indias, Colombia.
-* **Problemática:** ausencia de red pública de acueducto, salinización de pozos subterráneos
-  y retroceso costero por erosión de hasta **1,8 m/año**.
-* **Propuesta:** reubicación del equipamiento comunal a una cota segura (**+22,00 m s. n. m.**),
-  diseño bioclimático caribeño, cubierta captadora de pluviales (**1.850 m²**) y aljibe
-  subterráneo de **450.000 litros** con desinfección solar y fitodepuración de aguas grises.
+Cruzando ambas fuentes aparece el dato más útil del proyecto:
+
+> **El 99 % de las construcciones de Tierra Bomba es de una sola planta, con una altura media de
+> 2,97 m.**
+
+Lo dice el catastro oficial: 2.687 de 2.714 construcciones tienen `altura_tot` registrada, con un
+máximo de 3 m. En OpenStreetMap, en cambio, solo **1 de 827** edificaciones tenía altura.
+
+Esto obligó a corregir el visor 3D: la extrusión aproximada de las edificaciones de OpenStreetMap
+estaba fijada en 6 m (dos plantas, valor por defecto razonable en un entorno urbano) y ahora es de
+**3,2 m, calibrada con el dato catastral**. El caserío de la isla es abrumadoramente horizontal, y
+ahora el modelo lo refleja.
+
+En el visor, las dos capas de construcción se distinguen visualmente: la del catastro se extruye
+con su altura real y opacidad alta; la de OpenStreetMap, con tonos apagados y opacidad reducida.
+
+---
+
+## 🏗️ Decisiones técnicas
+
+Están documentadas con su razonamiento en [`docs/decisiones-tecnicas.md`](docs/decisiones-tecnicas.md).
+Resumen:
+
+| Decisión | Elección | Por qué |
+|---|---|---|
+| Motor del visor | **MapLibre GL JS, uno solo** | Ligero, sin token ni cuenta, con terreno real y extrusión nativa. Cesium y su globo 3D resultaban redundantes con TerriaMap para este ámbito insular |
+| Compilación | **Exportación estática** | GitHub Pages solo sirve archivos estáticos. Consecuencia: sin API ni Server Actions |
+| Participación | **Informe descargable** | Sin backend no hay envío posible. Se genera un informe estructurado en lugar de simular un formulario |
+| Tipos | **Comprobación fuera del build** | `npm run typecheck` en lugar de encadenar dos compilaciones |
+| Terreno | **AWS Terrain Tiles** | Elevación real (SRTM/GMTED) sin credenciales |
+| Cartografía base | **OpenFreeMap** | Teselas vectoriales libres, sin clave de API |
+
+**Ninguna herramienta de esta plataforma requiere cuenta ni token.**
+
+---
+
+## 🚀 Uso
+
+```bash
+git clone https://github.com/alejagoguti-cpu/tierrabomba-3d.git
+cd tierrabomba-3d
+npm install
+
+# Datos (solo la primera vez; se versionan en el repositorio)
+npm run datos:limite   # límite insular desde OpenStreetMap
+npm run datos:osm      # capas vectoriales desde Overpass API
+node scripts/datos/importar_catastro.mjs   # catastro oficial (requiere el ZIP)
+
+# Desarrollo
+npm run dev            # -> http://localhost:3000
+npm run typecheck      # comprobación de tipos (obligatoria antes de entregar)
+npm run build          # genera el sitio estático en out/
+```
+
+### Comandos disponibles
+
+| Comando | Función |
+|---|---|
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Compila el sitio estático en `out/` |
+| `npm run typecheck` | Comprueba tipos sin compilar |
+| `npm run datos:limite` | Descarga el límite insular de OpenStreetMap |
+| `npm run datos:osm` | Descarga las capas vectoriales de Overpass |
+| `npm run datos:publico` | Copia los datos a `public/` (automático en dev y build) |
+| `npm run convert` | Convierte el OBJ de Revit a GLB optimizado |
+| `npm run inspector` | Verifica la estructura de un GLB |
 
 ---
 
@@ -62,164 +172,92 @@ FreeCAD     ──►  sólidos del terreno, aljibe y cubierta
 
 ```
 tierrabomba-3d/
-├── index.html            Página de entrada publicada en GitHub Pages
-├── assets/
-│   ├── modelos/          Modelos 3D listos para web (GLB, STL)
-│   └── estilos-qgis/     Estilos .qml de las capas temáticas
+├── app/                          Rutas de Next.js (App Router)
+│   ├── page.tsx                  Portada narrativa
+│   ├── explorar/                 Visor territorial 3D
+│   └── (sitio)/                  Secciones con navegación y pie comunes
+│       ├── datos/                Catálogo de procedencia
+│       ├── equipamientos/        (fase siguiente)
+│       └── participa/            Participación ciudadana
+├── components/
+│   ├── mapa/                     Visor, panel de capas, fichas, controles
+│   ├── inicio/                   Portada narrativa
+│   └── layout/                   Navegación, pie, módulos en desarrollo
+├── lib/
+│   ├── catalogo.ts               Fuente única de las capas y sus metadatos
+│   ├── datos/servidor.ts         Lectura de manifiestos en tiempo de compilación
+│   ├── geo/estilos.ts            Catálogo -> especificaciones de MapLibre
+│   └── utils.ts                  Formateo en español
 ├── data/
-│   ├── ligero/           GeoJSON, CSV y capas pequeñas versionables
-│   │   └── limite_isla.geojson     Límite insular (OpenStreetMap, ODbL)
-│   └── pesado/           GPKG, LAS y rásters                [Releases]
-├── docs/                 Metodología, fichas técnicas y notas
+│   ├── osm/                      Capas de OpenStreetMap + manifiesto
+│   ├── oficial/                  Capas del catastro + manifiesto
+│   ├── ligero/                   Límite insular
+│   └── pesado/                   (vacío; los originales van en Releases)
 ├── scripts/
-│   ├── datos/            Descarga de datos abiertos (límite OSM)
-│   ├── qgis/             Preparación del terreno y export Qgis2threejs
-│   ├── freecad/          Macros de modelado de sólidos
-│   ├── web/              Visor three.js y utilidades del GLB
-│   ├── kepler/           Exportación y mapas de análisis (kepler.gl)
-│   └── terria/           Catálogo de datos para el globo 3D (TerriaMap)
-├── .gitattributes        Reglas de Git LFS
-└── .gitignore            Exclusiones (backups de Revit, cachés, secretos)
+│   ├── datos/                    Descarga, importación y publicación
+│   ├── qgis/                     Preparación del terreno y Qgis2threejs
+│   ├── freecad/                  Macro de modelado de sólidos
+│   ├── terria/                   Catálogo para el globo 3D
+│   ├── kepler/                   Exportación para análisis
+│   └── web/                      Conversión de modelos y servidores locales
+├── docs/                         Metodología y decisiones técnicas
+└── assets/modelos/               Modelo 3D del equipamiento (GLB)
 ```
 
 ---
 
-## 🧩 El modelo 3D principal
+## 📐 Arquitectura del visor
 
-`assets/modelos/TIERRABOMBA.glb` — exportado desde Revit (Autodesk ATF) y convertido a glTF binario.
-
-| Métrica | Valor |
-|---|---|
-| Vértices | 552.705 |
-| Caras | 1.087.522 |
-| Grupos de geometría | 4.472 |
-| OBJ original | 148,6 MB |
-| **GLB optimizado** | **40,3 MB** |
-| Reducción | **−73 %** |
-
-El modelo incluye el *Toposolid* del terreno y las edificaciones, con materiales por color
-(sin texturas), por lo que el GLB es autocontenido y no requiere archivos externos.
-
-### Regenerar el GLB
-
-```bash
-npm install
-npm run convert        # OBJ -> GLB
 ```
+data/                    manifiestos + GeoJSON
+   │
+   ├─► lib/datos/servidor.ts     lee en tiempo de compilación
+   │        │
+   │        └─► lib/catalogo.ts  metadatos + recuentos reales
+   │                 │
+   │                 └─► lib/geo/estilos.ts   expresiones de MapLibre
+   │                          │
+   └──────────────────────────┴─► components/mapa/VisorTerritorial.tsx
+                                        │
+                    MapLibre GL + OpenFreeMap + AWS Terrain + Turf.js
+```
+
+La separación es estricta: **los datos** viven en `data/`, **la lógica geoespacial** en `lib/geo/`,
+**los metadatos** en `lib/catalogo.ts` y **la interfaz** en `components/`. Añadir una capa al
+catálogo la propaga al visor, al panel de capas, a las leyendas y a la página de datos sin tocar
+nada más.
+
+### Rendimiento
+
+- Las capas se montan una sola vez y se muestran u ocultan con `setLayoutProperty`; no se destruyen
+  ni se recrean.
+- La extrusión 3D solo se activa en modo 3D y solo para las dos capas de construcción.
+- Las etiquetas se añaden en una segunda pasada para que queden sobre todos los rellenos.
+- El filtro del catastro se hace en coordenadas nativas antes de reproyectar: descarta 350.000 de
+  375.000 entidades sin coste de conversión.
 
 ---
 
-## 🚀 Uso rápido
+## ♿ Accesibilidad
 
-### 1. QGIS — preparar el terreno
-
-Los scripts de QGIS **se ejecutan dentro de QGIS**, no con el Python del sistema:
-necesitan PyQGIS. Ábrelos en **Complementos ▸ Consola de Python ▸ Editor**.
-
-1. `scripts/qgis/01_preparar_terreno.py` → genera el MDT, la pendiente y la zona segura.
-2. **Web ▸ Qgis2threejs ▸ Qgis2threejs Exporter** con la configuración que imprime
-   `scripts/qgis/02_exportar_qgis2threejs.py`.
-
-### 2. FreeCAD — sólidos del terreno
-
-**Macros ▸ Macros… ▸ Crear** y pegar el contenido de
-[`scripts/freecad/terreno_a_solido.FCMacro`](scripts/freecad/terreno_a_solido.FCMacro).
-Modela el aljibe de 450.000 L y la cubierta captadora de 1.850 m².
-
-### 3. Visor propio — presentación arquitectónica
-
-```bash
-npm install
-npm run dev            # -> http://localhost:5180
-```
-
-### 4. Datos abiertos — límite insular
-
-```bash
-npm run limite-osm     # descarga el límite de la isla desde OpenStreetMap
-```
-
-Genera `data/ligero/limite_isla.geojson` (2.431 → 447 vértices, −82 %), la capa base
-que usan tanto kepler.gl como TerriaMap.
-
-### 5. kepler.gl — análisis de datos
-
-```bash
-python scripts/kepler/generar_mapa_kepler.py   # requiere: pip install keplergl
-```
-
-O, sin instalar nada: arrastra los `*_kepler.geojson` a
-[kepler.gl/demo](https://kepler.gl/demo). Detalles en
-[`scripts/kepler/README.md`](scripts/kepler/README.md).
-
-### 6. TerriaMap — globo 3D territorial
-
-Sin instalar nada, abre el catálogo en la instancia pública:
-
-```
-https://terria.io/#https://alejagoguti-cpu.github.io/tierrabomba-3d/scripts/terria/catalogo-tierrabomba.json
-```
-
-Detalles de despliegue en [`scripts/terria/README.md`](scripts/terria/README.md).
+- Enlace de salto al contenido como primera parada del teclado.
+- Foco visible y consistente en toda la interfaz.
+- Interruptores de capa con `role="switch"` y `aria-checked`.
+- `aria-current` en la navegación y `aria-pressed` en los controles con estado.
+- Respeto de `prefers-reduced-motion`.
+- Contraste verificado sobre los paneles translúcidos.
 
 ---
 
-## ⚠️ Política de archivos pesados
+## 📜 Licencias y atribución
 
-GitHub tiene límites duros que condicionan qué se puede versionar:
-
-| Límite | Valor |
-|---|---|
-| Tamaño máximo por archivo (rechazo) | **100 MB** |
-| Aviso de archivo grande | 50 MB |
-| Almacenamiento Git LFS (plan gratuito) | 1 GB |
-| Ancho de banda Git LFS (plan gratuito) | 1 GB / mes |
-
-**Regla del repositorio:**
-
-| Tipo de archivo | Destino |
-|---|---|
-| Código, scripts, `.qml`, `.geojson`, CSV, `.glb`, `.stl` | Git normal |
-| GPKG, SHP, rásters, LIDAR, `.ai`, `.psd` (originales pesados) | **Git LFS** |
-| `.rvt` canónicos, rásters grandes | **GitHub Releases** (sin cuota LFS) |
-| Backups `*.0001.rvt` … `*.0052.rvt` | ❌ **No se suben** (redundantes) |
-
-> **Por qué el GLB no está en Git LFS.** Es deliberado: pesa 40 MB, está por debajo del
-> límite de 50 MB, y dejándolo en Git normal **cualquiera puede clonar el repositorio y ver
-> el visor sin instalar `git-lfs`**. Para un repositorio público de tesis eso vale más que
-> ahorrar unos megabytes.
-
-> Los ~40 backups numerados de Revit (`TIERRABOMBA.00xx.rvt`, `TOPOGRAFIA1.00xx.rvt`)
-> pesan entre 60 y 100 MB **cada uno**. Son copias automáticas de versiones anteriores
-> que Revit genera sola: subirlos supondría varios GB sin aportar información nueva.
-> Solo se conserva la versión canónica de cada modelo.
-
----
-
-## 📜 Licencia y créditos
-
-* **Código y scripts:** MIT — ver [`LICENSE`](LICENSE).
-* **Modelo BIM, datos geoespaciales y documentos:** © 2026 Alejandra Gómez & Ana Casas.
-  Todos los derechos reservados. El modelo 3D y los datos del territorio **no** están
-  cubiertos por la licencia MIT.
-* **Capa del límite insular** (`data/ligero/limite_isla.geojson`): © OpenStreetMap
-  contributors, licencia [ODbL 1.0](https://www.openstreetmap.org/copyright).
-  **Esta atribución es obligatoria** en cualquier publicación que use la capa.
-
-**Herramientas de terceros utilizadas** (no se redistribuyen aquí):
-
-| Herramienta | Licencia |
-|---|---|
-| [QGIS](https://qgis.org/) | GPL-3.0 |
-| [Qgis2threejs](https://github.com/minorua/Qgis2threejs) de Minoru Akagi | GPL-3.0 |
-| [FreeCAD](https://github.com/FreeCAD/FreeCAD) | LGPL-2.1 |
-| [three.js](https://threejs.org/) | MIT |
-| [obj2gltf](https://github.com/CesiumGS/obj2gltf) | Apache-2.0 |
-| [kepler.gl](https://github.com/keplergl/kepler.gl) | MIT |
-| [TerriaMap](https://github.com/TerriaJS/TerriaMap) / [TerriaJS](https://github.com/TerriaJS/terriajs) | Apache-2.0 |
-| [CesiumJS](https://cesium.com/platform/cesiumjs/) | Apache-2.0 |
-| [deck.gl](https://deck.gl/) | MIT |
-| Datos de [OpenStreetMap](https://www.openstreetmap.org/copyright) | ODbL 1.0 |
+* **Código:** MIT — ver [`LICENSE`](LICENSE).
+* **Datos de OpenStreetMap:** © OpenStreetMap contributors, **ODbL 1.0**. Atribución obligatoria.
+* **Catastro oficial:** © Catastro municipal de Cartagena de Indias. Uso institucional; verificar
+  condiciones con la entidad productora antes de redistribuir.
+* **Modelo BIM y documentos de la tesis:** © 2026 Alejandra Gómez & Ana Casas. Todos los derechos
+  reservados.
+* **Elevación:** AWS Terrain Tiles (SRTM/GMTED). **Cartografía base:** OpenFreeMap.
 
 ---
 
