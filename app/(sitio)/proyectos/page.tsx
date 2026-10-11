@@ -1,43 +1,125 @@
 import type { Metadata } from 'next';
-import { ModuloEnDesarrollo } from '@/components/layout/ModuloEnDesarrollo';
+import { TriangleAlert } from 'lucide-react';
+import { VisorModelo } from '@/components/proyectos/VisorModelo';
+import { TipologiaVivienda } from '@/components/proyectos/TipologiaVivienda';
 
-export const metadata: Metadata = { title: 'Proyectos' };
+export const metadata: Metadata = {
+  title: 'Proyectos arquitectónicos',
+  description:
+    'Visor 3D del modelo del equipamiento propuesto y de la tipología de vivienda a dos aguas del caserío de Tierra Bomba.',
+};
 
 export default function PaginaProyectos() {
   return (
-    <ModuloEnDesarrollo
-      titulo="Proyectos arquitectónicos"
-      descripcion="Visor de los modelos arquitectónicos del proyecto de grado: el equipamiento comunitario y la infraestructura hídrica propuestos para la meseta segura de Tierra Bomba."
-      funciones={[
-        'Visor 3D del modelo BIM exportado de Revit (glTF binario, 40,3 MB).',
-        'Filtro por familias de material: terreno, muros, tabiques y volumetría construida.',
-        'Despiece vertical para separar cubierta, aljibe y terreno.',
-        'Consulta de las propiedades disponibles por elemento.',
-        'Descarga del modelo y de la documentación autorizada.',
-      ]}
-      datosRequeridos={[
-        {
-          nombre: 'Modelo 3D del equipamiento',
-          estado: 'disponible',
-          nota: 'TIERRABOMBA.glb: 1.087.522 triángulos, 4.472 mallas, 6 materiales. Ya publicado en el repositorio.',
-        },
-        {
-          nombre: 'Georreferenciación del modelo',
-          estado: 'parcial',
-          nota: 'El OBJ de Revit está en coordenadas internas del proyecto, sin sistema de referencia. Debe calibrarse con un punto conocido para situarlo en el globo.',
-        },
-        {
-          nombre: 'Modelo IFC',
-          estado: 'pendiente',
-          nota: 'El módulo BIM requiere un IFC exportado de Revit con propiedades de elementos. El glTF actual no conserva metadatos BIM.',
-        },
-        {
-          nombre: 'Planos y memorias',
-          estado: 'parcial',
-          nota: 'Existe documentación gráfica en el repositorio, pero falta sistematizarla por planta y sección.',
-        },
-      ]}
-      alternativa={{ href: '/explorar', titulo: 'Situar el proyecto en el territorio' }}
-    />
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <header className="max-w-3xl">
+        <p className="dato-mono text-turquesa-500 uppercase tracking-[0.18em]">
+          Arquitectura
+        </p>
+        <h1 className="mt-2 font-display text-titulo text-hueso-100">Proyectos</h1>
+        <p className="mt-3 text-base leading-relaxed text-grafito-400">
+          El modelo del equipamiento propuesto para la meseta segura y la tipología de vivienda
+          del caserío, esta última construida con geometría paramétrica para poder ajustar
+          cubierta, huecos y materiales.
+        </p>
+      </header>
+
+      {/* Modelo del equipamiento */}
+      <section className="mt-8">
+        <div className="mb-3">
+          <h2 className="font-display text-xl text-hueso-100">Equipamiento propuesto</h2>
+          <p className="mt-1 max-w-3xl text-[0.8125rem] leading-relaxed text-grafito-400">
+            Modelo exportado de Revit y convertido a glTF binario. Puedes orbitar, filtrar por
+            familia de material y despiezar el modelo por cotas.
+          </p>
+        </div>
+        <VisorModelo />
+      </section>
+
+      {/* Aviso sobre el modelo */}
+      <section className="mt-4 flex gap-3 rounded-xl border border-hueso-100/10 bg-oceano-900/40 p-4">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-grafito-500" aria-hidden />
+        <p className="text-[0.75rem] leading-relaxed text-grafito-400">
+          <strong className="text-hueso-200">Sobre el modelo.</strong> Proviene de una exportación
+          OBJ de Revit (Autodesk ATF) convertida con <code className="dato-mono">obj2gltf</code>:
+          1.087.522 triángulos en 4.472 mallas y 6 materiales, con 40,3 MB. No incluye metadatos
+          BIM —para eso hace falta un IFC— ni planos asociados. El modelo está en coordenadas
+          internas del proyecto, por lo que se muestra aislado y <strong>no superpuesto al
+          territorio</strong>.
+        </p>
+      </section>
+
+      {/* Tipología del caserío */}
+      <section className="mt-12">
+        <div className="mb-3">
+          <h2 className="font-display text-xl text-hueso-100">
+            Tipología de vivienda del caserío
+          </h2>
+          <p className="mt-1 max-w-3xl text-[0.8125rem] leading-relaxed text-grafito-400">
+            Vivienda paramétrica con <strong className="text-hueso-200">tejado a dos aguas</strong>,
+            ventanas, puerta y materiales configurables. Los valores iniciales no son inventados:
+            salen del catastro oficial.
+          </p>
+        </div>
+
+        {/* Base tipológica, con su fuente */}
+        <div className="mb-3 grid gap-2.5 sm:grid-cols-3">
+          <DatoBase
+            valor="3,00 m"
+            etiqueta="Alto de muro"
+            fuente="Catastro · altura_tot, media de 2.687 construcciones registradas"
+          />
+          <DatoBase
+            valor="1 planta"
+            etiqueta="Número de pisos"
+            fuente="Catastro · total_piso, mediana = 1 en las 2.714 construcciones"
+          />
+          <DatoBase
+            valor="72,5 m²"
+            etiqueta="Área construida media"
+            fuente="Catastro · area_total. El ancho y el fondo son ajustables porque el catastro no los registra"
+          />
+        </div>
+
+        <TipologiaVivienda />
+      </section>
+
+      {/* Nota metodológica */}
+      <section className="mt-4 rounded-xl border border-hueso-100/10 bg-oceano-900/40 p-4">
+        <h3 className="text-[0.8125rem] font-semibold text-hueso-200">
+          Por qué esta vivienda se genera y no se importa
+        </h3>
+        <p className="mt-1.5 text-[0.75rem] leading-relaxed text-grafito-400">
+          MapLibre GL —el motor del visor territorial— solo produce prismas de tapa plana: no
+          puede representar un tejado inclinado. Esta vivienda se construye vértice a vértice en
+          three.js, de modo que la pendiente de la cubierta, el vuelo del alero y los huecos de
+          fachada son geometría real y editable.
+        </p>
+        <p className="mt-2 text-[0.75rem] leading-relaxed text-grafito-400">
+          La cubierta es de <strong className="text-hueso-200">lámina de acero corrugado</strong>,
+          no de teja de barro: es el material del caserío de Tierra Bomba. La textura es
+          procedural, generada con{' '}
+          <code className="dato-mono">scripts/datos/generar_texturas.py</code>.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function DatoBase({
+  valor,
+  etiqueta,
+  fuente,
+}: {
+  valor: string;
+  etiqueta: string;
+  fuente: string;
+}) {
+  return (
+    <div className="rounded-lg border border-hueso-100/10 bg-oceano-900/50 p-3.5">
+      <p className="font-display text-xl leading-none text-hueso-100">{valor}</p>
+      <p className="mt-1 text-[0.6875rem] text-turquesa-400">{etiqueta}</p>
+      <p className="mt-1.5 text-[0.625rem] leading-snug text-grafito-500">{fuente}</p>
+    </div>
   );
 }

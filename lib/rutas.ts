@@ -34,7 +34,7 @@ export const RUTAS: RutaApp[] = [
     href: '/proyectos',
     titulo: 'Proyectos',
     descripcion: 'Modelos arquitectónicos y propuestas georreferenciadas.',
-    estado: 'en-desarrollo',
+    estado: 'listo',
   },
   {
     href: '/ambiente',
