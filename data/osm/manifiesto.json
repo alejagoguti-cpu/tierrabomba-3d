@@ -106,9 +106,30 @@
       "licencia": "ODbL 1.0",
       "estado_validacion": "colaborativo-verificado",
       "peso_kb": 147
+    },
+    "equipamientos": {
+      "titulo": "Equipamientos y servicios",
+      "descripcion": "Equipamientos comunitarios y servicios: educacion, salud, culto, deporte, comercio y servicios. Solo los documentados en OpenStreetMap.",
+      "categoria": "equipamientos",
+      "color": "#39B8B0",
+      "archivo": "data/osm/equipamientos.geojson",
+      "entidades": 9,
+      "geometrias": {
+        "puntos": 6,
+        "lineas": 0,
+        "poligonos": 3,
+        "relaciones": 0,
+        "sinGeometria": 0
+      },
+      "fecha_descarga": "2026-10-11",
+      "fuente": "OpenStreetMap",
+      "attribution": "(c) OpenStreetMap contributors",
+      "licencia": "ODbL 1.0",
+      "estado_validacion": "colaborativo-verificado",
+      "peso_kb": 3
     }
   },
   "osm_relacion_isla": 11226348,
-  "total_entidades": 1287,
+  "total_entidades": 1296,
   "nota": "Manifiesto de procedencia. Generado automaticamente por scripts/datos/descargar_osm_tierrabomba.mjs. No editar a mano."
 }

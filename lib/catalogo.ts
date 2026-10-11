@@ -354,7 +354,7 @@ export const CAPAS: DefinicionCapa[] = [
     attribution: '© OpenStreetMap contributors',
     estadoValidacion: 'colaborativo-verificado',
     limitaciones:
-      'Inventario muy incompleto: OpenStreetMap registra un número reducido de equipamientos en la isla. La ausencia de un equipamiento en esta capa NO significa que no exista.',
+      'Inventario prácticamente vacío: los únicos elementos cartografiados en la isla son de comercio (supermercados, ferretería, verdulería). Salud, educación, cultura, deporte, culto e institucional no tienen ni un registro. Su ausencia NO significa que no existan, sino que nadie los ha cartografiado. Hace falta el listado oficial de la Alcaldía o trabajo de campo.',
   },
 
   // ---------------------------------------------------------------

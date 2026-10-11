@@ -22,13 +22,13 @@ export const RUTAS: RutaApp[] = [
     href: '/equipamientos',
     titulo: 'Equipamientos',
     descripcion: 'Catálogo y análisis de los servicios comunitarios de la isla.',
-    estado: 'en-desarrollo',
+    estado: 'listo',
   },
   {
     href: '/construcciones',
     titulo: 'Construcciones',
     descripcion: 'Inventario de edificaciones registradas y su estado de documentación.',
-    estado: 'en-desarrollo',
+    estado: 'listo',
   },
   {
     href: '/proyectos',

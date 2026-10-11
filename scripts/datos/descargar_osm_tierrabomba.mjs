@@ -206,22 +206,50 @@ async function pedirOverpass(q) {
  * Descarga una capa completa ejecutando todas sus consultas y
  * fusionando los resultados.
  *
- * Se deduplica por `tipo/id` porque un mismo elemento puede aparecer
- * en varias consultas (por ejemplo, un edificio que tambien es
- * comercio). Los identificadores de OSM son globales, asi que
- * fusionar respuestas distintas es seguro.
+ * RESILIENCIA A FALLOS PARCIALES
+ *   Overpass es un servicio público muy saturado y falla de forma
+ *   intermitente. Antes, si una sola de las seis consultas de
+ *   equipamientos fallaba, se descartaba la capa entera: se perdían
+ *   los resultados que SÍ habían llegado.
+ *
+ *   Ahora se conserva todo lo que responda y solo se da la capa por
+ *   fallida si no responde ninguna consulta. Las que fallen se
+ *   informan para poder reintentarlas.
+ *
+ * Se deduplica por `tipo/id` porque un mismo elemento puede aparecer en
+ * varias consultas (un edificio que también es comercio). Los
+ * identificadores de OSM son globales, así que fusionar respuestas
+ * distintas es seguro.
  */
 async function pedirElementosCapa(capa) {
   const vistos = new Map();
+  const fallidas = [];
   const total = capa.consultas.length;
 
   for (let i = 0; i < total; i++) {
     if (total > 1) log(`      consulta ${i + 1}/${total}`);
-    const datos = await pedirOverpass(consultaOverpass(capa.consultas[i]));
-    for (const el of datos.elements ?? []) {
-      vistos.set(`${el.type}/${el.id}`, el);
+    try {
+      const datos = await pedirOverpass(consultaOverpass(capa.consultas[i]));
+      for (const el of datos.elements ?? []) {
+        vistos.set(`${el.type}/${el.id}`, el);
+      }
+    } catch (e) {
+      fallidas.push(i + 1);
+      log(`      consulta ${i + 1}/${total}: FALLIDA (${e.message})`);
     }
     if (i < total - 1) await esperar(1500);
+  }
+
+  if (!vistos.size) {
+    throw new Error(`ninguna de las ${total} consultas respondio`);
+  }
+
+  if (fallidas.length) {
+    log(
+      `      AVISO: ${fallidas.length} de ${total} consultas fallaron ` +
+        `(${fallidas.join(', ')}). Se conserva el resto.`
+    );
+    log(`      reintenta solo esas consultas mas tarde.`);
   }
 
   return [...vistos.values()];
