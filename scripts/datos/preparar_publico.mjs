@@ -108,7 +108,24 @@ for (const { origen, destino, etiqueta } of destinos) {
 }
 
 // ------------------------------------------------------------------
-//  2. Modelos 3D
+//  2. web-ifc: el binario wasm del lector de IFC
+//     El módulo BIM analiza los IFC en el navegador, así que el wasm
+//     tiene que ser accesible por HTTP. Se copia desde node_modules y
+//     no se versiona: es un artefacto de compilación.
+// ------------------------------------------------------------------
+const wasmOrigen = resolve(RAIZ, 'node_modules/web-ifc/web-ifc.wasm');
+if (existsSync(wasmOrigen)) {
+  mkdirSync(join(PUBLICO, 'ifc'), { recursive: true });
+  cpSync(wasmOrigen, join(PUBLICO, 'ifc/web-ifc.wasm'));
+  const kb = statSync(join(PUBLICO, 'ifc/web-ifc.wasm')).size / 1024;
+  log(`web-ifc${' '.repeat(11)} wasm  ${kb.toFixed(0)} KB -> public/ifc/`);
+} else {
+  log('AVISO: no se encontro node_modules/web-ifc/web-ifc.wasm');
+  log('       el modulo BIM no podra leer archivos IFC');
+}
+
+// ------------------------------------------------------------------
+//  3. Modelos 3D
 // ------------------------------------------------------------------
 const modelosOrigen = resolve(RAIZ, 'assets/modelos');
 let totalModelos = 0;

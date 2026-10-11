@@ -21,9 +21,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { TriangleAlert } from 'lucide-react';
 // MapLibre GL v6 no expone un export por defecto: se importa el modulo completo.
 import * as maplibregl from 'maplibre-gl';
-import type { Map as MapaML, MapMouseEvent } from 'maplibre-gl';
+import type { Map as MapaML, MapMouseEvent, LayerSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { length as longitudTurf } from '@turf/length';
@@ -159,6 +160,8 @@ export function VisorTerritorial({
   const medicionRef = useRef<PuntoMedicion[]>([]);
 
   const [cargando, setCargando] = useState(true);
+  /** Capas que MapLibre rechazó, para poder avisar en vez de ocultarlo. */
+  const [avisoCapas, setAvisoCapas] = useState(0);
   const [errorMapa, setErrorMapa] = useState<string | null>(null);
   const [visibles, setVisibles] = useState<Set<string>>(
     () => new Set(catalogo.filter((c) => c.visibleInicial).map((c) => c.id))
@@ -211,28 +214,55 @@ export function VisorTerritorial({
   //  Montaje de fuentes y capas
   // ------------------------------------------------------------------
   const montarCapas = useCallback((mapa: MapaML) => {
+    // Una capa problemática NO puede impedir que se monten las demás ni
+    // dejar el visor colgado en «cargando»: cada una va en su try.
+    const fallidas: string[] = [];
+
+    const añadir = (spec: LayerSpecification, visible: boolean) => {
+      if (mapa.getLayer(spec.id)) return;
+      try {
+        // Un patrón que apunte a una imagen ausente hace que MapLibre
+        // rechace la capa entera. Se comprueba antes de añadirla.
+        const pintura = { ...(spec.paint ?? {}) } as Record<string, unknown>;
+        for (const clave of ['fill-pattern', 'fill-extrusion-pattern']) {
+          const imagen = pintura[clave];
+          if (typeof imagen === 'string' && !mapa.hasImage(imagen)) {
+            delete pintura[clave];
+          }
+        }
+        mapa.addLayer({
+          ...spec,
+          paint: pintura,
+          layout: { ...(spec.layout ?? {}), visibility: visible ? 'visible' : 'none' },
+        } as never);
+      } catch (e) {
+        fallidas.push(`${spec.id}: ${(e as Error)?.message ?? 'error'}`);
+      }
+    };
+
     // Pasada 1: geometrías
     for (const capa of catalogoRef.current) {
       const fuente = idFuente(capa.id);
-      if (!mapa.getSource(fuente)) {
-        mapa.addSource(fuente, {
-          type: 'geojson',
-          data: urlPublica(capa.archivo),
-          // `promoteId` expone el código catastral como identificador de
-          // elemento, que es lo que permite colorear cada vivienda por
-          // separado con `setFeatureState` sin tocar los datos.
-          ...(esEditable(capa) ? { promoteId: CAMPO_ID_VIVIENDA } : {}),
-        });
+      try {
+        if (!mapa.getSource(fuente)) {
+          mapa.addSource(fuente, {
+            type: 'geojson',
+            data: urlPublica(capa.archivo),
+            // `promoteId` expone el código catastral como identificador de
+            // elemento, que es lo que permite colorear cada vivienda por
+            // separado con `setFeatureState` sin tocar los datos.
+            ...(esEditable(capa) ? { promoteId: CAMPO_ID_VIVIENDA } : {}),
+          });
+        }
+      } catch (e) {
+        fallidas.push(`fuente ${capa.id}: ${(e as Error)?.message ?? 'error'}`);
+        continue;
       }
+
       const visible = visiblesRef.current.has(capa.id);
       for (const spec of especificacionesDeCapa(capa, modo3dRef.current, conTexturasRef.current)) {
         if (spec.type === 'symbol') continue;
-        if (!mapa.getLayer(spec.id)) {
-          mapa.addLayer({
-            ...spec,
-            layout: { ...(spec.layout ?? {}), visibility: visible ? 'visible' : 'none' },
-          } as never);
-        }
+        añadir(spec, visible);
       }
     }
 
@@ -241,13 +271,13 @@ export function VisorTerritorial({
       const visible = visiblesRef.current.has(capa.id);
       for (const spec of especificacionesDeCapa(capa, modo3dRef.current, conTexturasRef.current)) {
         if (spec.type !== 'symbol') continue;
-        if (!mapa.getLayer(spec.id)) {
-          mapa.addLayer({
-            ...spec,
-            layout: { ...(spec.layout ?? {}), visibility: visible ? 'visible' : 'none' },
-          } as never);
-        }
+        añadir(spec, visible);
       }
+    }
+
+    if (fallidas.length) {
+      console.warn('[visor] capas no montadas:', fallidas);
+      setAvisoCapas(fallidas.length);
     }
   }, []);
 
@@ -323,32 +353,59 @@ export function VisorTerritorial({
       }
     };
 
-    mapa.on('load', async () => {
-      activarTerreno();
-      // Las texturas deben existir ANTES de crear las capas que las
-      // usan: MapLibre rechaza una capa cuyo patrón no esté cargado.
-      await cargarTexturas(mapa);
-      montarCapas(mapa);
-      // Las ediciones guardadas se vuelcan en cuanto hay capas
-      const guardadas = leerEdiciones();
-      setEdiciones(guardadas);
-      aplicarEdiciones(mapa, guardadas);
-      setCargando(false);
-    });
+    // El visor NUNCA debe quedarse en «cargando»: pase lo que pase, el
+    // indicador se retira. Antes, una excepción aquí dejaba el mapa
+    // colgado indefinidamente sin ningún mensaje.
+    const arrancar = async () => {
+      try {
+        activarTerreno();
+        // Las texturas deben existir ANTES de crear las capas que las
+        // usan: MapLibre rechaza una capa cuyo patrón no esté cargado.
+        await cargarTexturas(mapa);
+        montarCapas(mapa);
+        // Las ediciones guardadas se vuelcan en cuanto hay capas
+        const guardadas = leerEdiciones();
+        setEdiciones(guardadas);
+        aplicarEdiciones(mapa, guardadas);
+      } catch (e) {
+        console.error('[visor] fallo al preparar el mapa:', e);
+        setAvisoCapas(-1);
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    mapa.on('load', () => void arrancar());
 
     // Al cambiar de estilo base, MapLibre elimina tanto las capas
     // propias como las imágenes: hay que volver a montar todo.
     let estiloInicial = true;
-    mapa.on('style.load', async () => {
+    mapa.on('style.load', () => {
       if (estiloInicial) {
         estiloInicial = false;
         return;
       }
-      activarTerreno();
-      await cargarTexturas(mapa);
-      montarCapas(mapa);
-      aplicarEdiciones(mapa, leerEdiciones());
+      void (async () => {
+        try {
+          activarTerreno();
+          await cargarTexturas(mapa);
+          montarCapas(mapa);
+          aplicarEdiciones(mapa, leerEdiciones());
+        } catch (e) {
+          console.error('[visor] fallo al cambiar de estilo:', e);
+        }
+      })();
     });
+
+    // Red de seguridad: si a los 20 s el estilo no ha cargado (red
+    // bloqueada, CDN caído), se avisa en lugar de dejar la rueda.
+    const vigilante = window.setTimeout(() => {
+      if (!mapa.isStyleLoaded()) {
+        console.warn('[visor] el estilo no cargó en 20 s');
+        setAvisoCapas(-2);
+        setCargando(false);
+      }
+    }, 20000);
 
     mapa.on('error', (e) => {
       // Errores de teselas ajenas no deben romper la interfaz
@@ -447,6 +504,7 @@ export function VisorTerritorial({
     mapa.on('mousemove', cambiarCursor);
 
     return () => {
+      window.clearTimeout(vigilante);
       mapa.remove();
       mapaRef.current = null;
     };
@@ -616,6 +674,29 @@ export function VisorTerritorial({
           <div className="panel flex items-center gap-3 px-5 py-3">
             <span className="size-2 animate-pulse rounded-full bg-turquesa-500" />
             <span className="text-sm text-hueso-200">Cargando territorio…</span>
+          </div>
+        </div>
+      )}
+
+      {/* Aviso cuando algo no cargó: antes esto se quedaba en silencio */}
+      {avisoCapas !== 0 && !cargando && (
+        <div className="absolute left-1/2 top-16 z-30 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2">
+          <div className="panel flex gap-2.5 px-4 py-3">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-pendiente" aria-hidden />
+            <div>
+              <p className="text-[0.75rem] font-semibold text-arena-300">
+                {avisoCapas === -2
+                  ? 'El mapa base no terminó de cargar'
+                  : avisoCapas === -1
+                    ? 'Hubo un problema al preparar las capas'
+                    : `${avisoCapas} capa(s) no se pudieron montar`}
+              </p>
+              <p className="mt-1 text-[0.6875rem] leading-relaxed text-grafito-400">
+                {avisoCapas === -2
+                  ? 'Puede ser la red o el proveedor de cartografía base. Vuelve a cargar la página; el resto de la plataforma funciona igual.'
+                  : 'El resto del visor sigue operativo. El detalle está en la consola del navegador.'}
+              </p>
+            </div>
           </div>
         </div>
       )}

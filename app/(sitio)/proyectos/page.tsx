@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { TriangleAlert } from 'lucide-react';
 import { VisorModelo } from '@/components/proyectos/VisorModelo';
 import { TipologiaVivienda } from '@/components/proyectos/TipologiaVivienda';
+import { VisorIFC } from '@/components/proyectos/VisorIFC';
 
 export const metadata: Metadata = {
   title: 'Proyectos arquitectónicos',
@@ -82,6 +83,20 @@ export default function PaginaProyectos() {
         </div>
 
         <TipologiaVivienda />
+      </section>
+
+      {/* Modelo BIM: lectura de IFC */}
+      <section className="mt-12">
+        <div className="mb-3">
+          <h2 className="font-display text-xl text-hueso-100">Modelo BIM (IFC)</h2>
+          <p className="mt-1 max-w-3xl text-[0.8125rem] leading-relaxed text-grafito-400">
+            Lectura de archivos IFC con <strong className="text-hueso-200">web-ifc</strong>, el
+            motor de That Open Engine. Extrae la geometría y los datos BIM reales del archivo:
+            tipos de elemento, recuento y niveles. <strong>Todo ocurre en tu navegador</strong>: el
+            archivo no se envía a ningún servidor.
+          </p>
+        </div>
+        <VisorIFC />
       </section>
 
       {/* Nota metodológica */}
