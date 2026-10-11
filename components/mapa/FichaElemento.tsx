@@ -13,7 +13,7 @@
  *   ficha lo dice, en lugar de inventar un número.
  */
 
-import { Crosshair, ExternalLink, Ruler, Scan, ShieldCheck, TriangleAlert, X } from 'lucide-react';
+import { Crosshair, ExternalLink, Paintbrush, Ruler, Scan, ShieldCheck, TriangleAlert, X } from 'lucide-react';
 import { ETIQUETA_ESTADO, type DefinicionCapa } from '@/lib/catalogo';
 import { ALTURA_APROXIMADA_M } from '@/lib/geo/estilos';
 import { area as formatearArea, coordenadas, longitud as formatearLongitud, siNo } from '@/lib/utils';
@@ -24,6 +24,8 @@ interface Props {
   capa?: DefinicionCapa;
   alCerrar: () => void;
   alCentrar: () => void;
+  /** Presente solo si la capa permite editar la vivienda. */
+  alEditar?: () => void;
 }
 
 /** Valor o el texto normalizado de ausencia de dato. */
@@ -105,7 +107,7 @@ function camposDe(
   }));
 }
 
-export function FichaElemento({ elemento, capa, alCerrar, alCentrar }: Props) {
+export function FichaElemento({ elemento, capa, alCerrar, alCentrar, alEditar }: Props) {
   const campos = camposDe(elemento);
   const presentes = campos.filter((c) => !c.ausente);
   const ausentes = campos.filter((c) => c.ausente);
@@ -294,6 +296,16 @@ export function FichaElemento({ elemento, capa, alCerrar, alCentrar }: Props) {
 
       {/* Acciones */}
       <footer className="flex items-center gap-2 border-t border-hueso-100/10 px-4 py-2.5">
+        {alEditar && (
+          <button
+            type="button"
+            onClick={alEditar}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-arena-500/20 px-3 py-1.5 text-[0.75rem] font-medium text-arena-300 transition hover:bg-arena-500/30"
+          >
+            <Paintbrush className="size-3.5" aria-hidden />
+            Editar vivienda
+          </button>
+        )}
         <button
           type="button"
           onClick={alCentrar}
@@ -309,7 +321,7 @@ export function FichaElemento({ elemento, capa, alCerrar, alCentrar }: Props) {
           className="flex items-center justify-center gap-1.5 rounded-md bg-hueso-100/10 px-3 py-1.5 text-[0.75rem] text-hueso-200 transition hover:bg-hueso-100/20"
         >
           <ExternalLink className="size-3.5" aria-hidden />
-          Ver en OSM
+          OSM
         </a>
       </footer>
     </section>

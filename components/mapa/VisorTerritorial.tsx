@@ -20,6 +20,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 // MapLibre GL v6 no expone un export por defecto: se importa el modulo completo.
 import * as maplibregl from 'maplibre-gl';
 import type { Map as MapaML, MapMouseEvent } from 'maplibre-gl';
@@ -32,18 +33,30 @@ import { point as puntoTurf, lineString, polygon as poligonoTurf } from '@turf/h
 import { AREA_ESTUDIO, type DefinicionCapa } from '@/lib/catalogo';
 import {
   CAPAS_CON_EXTRUSION,
+  CAMPO_ID_VIVIENDA,
   ESTILOS_BASE,
   EXAGERACION_TERRENO,
   FUENTE_TERRENO,
   TEXTURAS,
   especificacionesDeCapa,
+  esEditable,
   idExtrusion,
   idPunto,
   idRelleno,
   idLinea,
   idFuente,
   idsDeCapa,
+  type NombreTextura,
 } from '@/lib/geo/estilos';
+import {
+  borrarEdicion,
+  contarEdiciones,
+  exportarEdiciones,
+  guardarEdicion,
+  leerEdiciones,
+  type EdicionVivienda,
+  type MapaEdiciones,
+} from '@/lib/viviendas';
 
 /** Carga las texturas procedurales en el mapa antes de dibujar capas. */
 async function cargarTexturas(mapa: MapaML) {
@@ -93,6 +106,36 @@ const ORDEN_DIBUJO = [
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
+/**
+ * El editor de vivienda se carga solo cuando se abre.
+ * Arrastra three.js (~600 kB), y no tiene sentido pagarlo al entrar al
+ * visor si la mayoría de visitas solo van a mirar el mapa.
+ */
+const EditorVivienda = dynamic(
+  () => import('./EditorVivienda').then((m) => m.EditorVivienda),
+  { ssr: false }
+);
+
+/**
+ * Vuelca las ediciones guardadas sobre el mapa.
+ *
+ * Se aplican como `feature-state`, no reescribiendo los GeoJSON: así el
+ * color de una vivienda es una capa de información aparte, y borrar la
+ * edición devuelve el mapa a su estado original sin reimportar nada.
+ */
+function aplicarEdiciones(mapa: MapaML, ediciones: MapaEdiciones) {
+  const fuente = idFuente('catastro-construccion');
+  if (!mapa.getSource(fuente)) return;
+
+  for (const [codigo, e] of Object.entries(ediciones)) {
+    try {
+      mapa.setFeatureState({ source: fuente, id: codigo }, { colorMuro: e.colorMuro });
+    } catch {
+      // Un código que ya no exista en los datos no debe romper nada
+    }
+  }
+}
+
 /** Añade el prefijo de despliegue a una ruta pública. */
 const urlPublica = (ruta: string) => `${BASE}${ruta}`;
 
@@ -130,6 +173,14 @@ export function VisorTerritorial({
   const [cursor, setCursor] = useState<{ lng: number; lat: number } | null>(null);
   const [zoom, setZoom] = useState(AREA_ESTUDIO.zoomInicial);
   const [panelMovilAbierto, setPanelMovilAbierto] = useState(false);
+  /** Ediciones de vivienda guardadas en este navegador. */
+  const [ediciones, setEdiciones] = useState<MapaEdiciones>({});
+  /** Vivienda en edición, con los datos que el editor necesita. */
+  const [objetivoEdicion, setObjetivoEdicion] = useState<{
+    codigo: string;
+    alturaOficial: number | null;
+    areaHuella: number | null;
+  } | null>(null);
 
   // El catálogo, ordenado para dibujar
   const catalogoOrdenado = useMemo(() => {
@@ -167,6 +218,10 @@ export function VisorTerritorial({
         mapa.addSource(fuente, {
           type: 'geojson',
           data: urlPublica(capa.archivo),
+          // `promoteId` expone el código catastral como identificador de
+          // elemento, que es lo que permite colorear cada vivienda por
+          // separado con `setFeatureState` sin tocar los datos.
+          ...(esEditable(capa) ? { promoteId: CAMPO_ID_VIVIENDA } : {}),
         });
       }
       const visible = visiblesRef.current.has(capa.id);
@@ -274,6 +329,10 @@ export function VisorTerritorial({
       // usan: MapLibre rechaza una capa cuyo patrón no esté cargado.
       await cargarTexturas(mapa);
       montarCapas(mapa);
+      // Las ediciones guardadas se vuelcan en cuanto hay capas
+      const guardadas = leerEdiciones();
+      setEdiciones(guardadas);
+      aplicarEdiciones(mapa, guardadas);
       setCargando(false);
     });
 
@@ -288,6 +347,7 @@ export function VisorTerritorial({
       activarTerreno();
       await cargarTexturas(mapa);
       montarCapas(mapa);
+      aplicarEdiciones(mapa, leerEdiciones());
     });
 
     mapa.on('error', (e) => {
@@ -615,6 +675,8 @@ export function VisorTerritorial({
         }}
         pendienteTerreno={pendienteTerreno}
         alAbrirPanel={() => setPanelMovilAbierto(true)}
+        viviendasEditadas={Object.keys(ediciones).length}
+        alExportarViviendas={exportarEdiciones}
       />
 
       {/* Ficha del elemento seleccionado */}
@@ -624,6 +686,57 @@ export function VisorTerritorial({
           capa={catalogo.find((c) => c.id === seleccion.capaId)}
           alCerrar={() => setSeleccion(null)}
           alCentrar={() => centrarEn(seleccion.lng, seleccion.lat)}
+          alEditar={
+            seleccion.capaId === 'catastro-construccion'
+              ? () => {
+                  const codigo = String(seleccion.propiedades[CAMPO_ID_VIVIENDA] ?? '');
+                  if (!codigo) return;
+                  const altura = Number(seleccion.propiedades.altura_tot);
+                  setObjetivoEdicion({
+                    codigo,
+                    alturaOficial: Number.isFinite(altura) && altura > 0 ? altura : null,
+                    areaHuella: seleccion.areaM2 ?? null,
+                  });
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {/* Editor de vivienda: se carga solo al abrirse */}
+      {objetivoEdicion && (
+        <EditorVivienda
+          codigo={objetivoEdicion.codigo}
+          alturaOficial={objetivoEdicion.alturaOficial}
+          areaHuella={objetivoEdicion.areaHuella}
+          edicion={ediciones[objetivoEdicion.codigo] ?? null}
+          alGuardar={(e) => {
+            setEdiciones(guardarEdicion(e));
+            const mapa = mapaRef.current;
+            const fuente = idFuente('catastro-construccion');
+            if (mapa?.getSource(fuente)) {
+              try {
+                mapa.setFeatureState({ source: fuente, id: e.codigo }, { colorMuro: e.colorMuro });
+              } catch {
+                // El elemento puede no estar en el estilo actual
+              }
+            }
+          }}
+          alBorrar={() => {
+            const codigo = objetivoEdicion.codigo;
+            setEdiciones(borrarEdicion(codigo));
+            const mapa = mapaRef.current;
+            const fuente = idFuente('catastro-construccion');
+            if (mapa?.getSource(fuente)) {
+              try {
+                mapa.removeFeatureState({ source: fuente, id: codigo }, 'colorMuro');
+              } catch {
+                // Nada que revertir
+              }
+            }
+            setObjetivoEdicion(null);
+          }}
+          alCerrar={() => setObjetivoEdicion(null)}
         />
       )}
 

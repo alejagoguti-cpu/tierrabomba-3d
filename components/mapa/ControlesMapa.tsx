@@ -15,6 +15,7 @@ import {
   BookmarkPlus,
   Box,
   Check,
+  Home,
   Map as MapIcon,
   Maximize2,
   PanelLeft,
@@ -52,6 +53,9 @@ interface Props {
   alEncuadrar: () => void;
   pendienteTerreno: boolean;
   alAbrirPanel: () => void;
+  /** Número de viviendas con edición guardada en este navegador. */
+  viviendasEditadas?: number;
+  alExportarViviendas?: () => void;
 }
 
 const CLAVE_VISTAS = 'tb3d:vistas';
@@ -70,6 +74,8 @@ export function ControlesMapa({
   alEncuadrar,
   pendienteTerreno,
   alAbrirPanel,
+  viviendasEditadas = 0,
+  alExportarViviendas,
 }: Props) {
   const [vistas, setVistas] = useState<VistaGuardada[]>([]);
   const [panelVistas, setPanelVistas] = useState(false);
@@ -285,6 +291,25 @@ export function ControlesMapa({
                   </li>
                 ))}
               </ul>
+            )}
+            {/* Viviendas editadas: el trabajo vive en el navegador, así
+                que hay que poder sacarlo de aquí. */}
+            {viviendasEditadas > 0 && (
+              <div className="mt-3 border-t border-hueso-100/10 pt-3">
+                <p className="text-[0.6875rem] text-grafito-400">
+                  <strong className="text-hueso-200">{viviendasEditadas}</strong>{' '}
+                  {viviendasEditadas === 1 ? 'vivienda editada' : 'viviendas editadas'} en este
+                  navegador.
+                </p>
+                <button
+                  type="button"
+                  onClick={alExportarViviendas}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-hueso-100/10 px-3 py-1.5 text-[0.75rem] text-hueso-200 transition hover:bg-hueso-100/20"
+                >
+                  <Home className="size-3.5" aria-hidden />
+                  Exportar a JSON
+                </button>
+              </div>
             )}
           </div>
         )}

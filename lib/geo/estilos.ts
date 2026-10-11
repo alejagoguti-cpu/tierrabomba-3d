@@ -81,6 +81,17 @@ export const ALTURA_APROXIMADA_M = 3.2;
 /** Altura en metros de cada nivel cuando solo hay `building:levels`. */
 export const ALTURA_POR_NIVEL_M = 3.2;
 
+/** Identificador catastral: es la clave con la que se editan viviendas. */
+export const CAMPO_ID_VIVIENDA = 'codigo';
+
+/**
+ * ¿La capa admite edición por vivienda?
+ * Solo las construcciones del catastro, que llevan código catastral.
+ */
+export function esEditable(capa: DefinicionCapa): boolean {
+  return capa.id === 'catastro-construccion';
+}
+
 /** Capas que se extruyen en 3D. */
 export const CAPAS_CON_EXTRUSION = new Set(['edificaciones', 'catastro-construccion']);
 
@@ -248,26 +259,30 @@ export function especificacionesDeCapa(
         // Con textura, la cubierta se lee por su material (lámina de
         // acero corrugado). Sin textura, el color codifica la altura.
         ...(textura ? { 'fill-extrusion-pattern': textura } : {}),
-        // Con dato oficial la rampa va de un marrón terroso a un
-        // blanco cálido; con la aproximación, tonos más apagados para
-        // que se distinga de un vistazo qué capa es dato y cuál no.
-        'fill-extrusion-color': esOficial
-          ? [
-              'interpolate',
-              ['linear'],
-              ['coalesce', ['to-number', ['get', 'altura_tot'], 3], 3],
-              2, '#8a7550',
-              4, '#d9c6a3',
-              8, '#f0e6d2',
-            ]
-          : [
-              'interpolate',
-              ['linear'],
-              ['coalesce', ['to-number', ['get', 'height'], 0], 0],
-              0, '#6f6047',
-              12, '#b8a077',
-              30, '#d9c6a3',
-            ],
+        // El color editado por la persona usuaria TIENE PRIORIDAD sobre
+        // la rampa. Se guarda como feature-state, indexado por código
+        // catastral, así que no hay que reescribir los datos del mapa.
+        'fill-extrusion-color': [
+          'coalesce',
+          ['feature-state', 'colorMuro'],
+          esOficial
+            ? [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['to-number', ['get', 'altura_tot'], 3], 3],
+                2, '#8a7550',
+                4, '#d9c6a3',
+                8, '#f0e6d2',
+              ]
+            : [
+                'interpolate',
+                ['linear'],
+                ['coalesce', ['to-number', ['get', 'height'], 0], 0],
+                0, '#6f6047',
+                12, '#b8a077',
+                30, '#d9c6a3',
+              ],
+        ],
         'fill-extrusion-height': esOficial ? EXPRESION_ALTURA_OFICIAL : EXPRESION_ALTURA,
         'fill-extrusion-base': 0,
         'fill-extrusion-opacity': textura ? 1 : esOficial ? 0.94 : 0.7,

@@ -1,0 +1,79 @@
+# ==================================================================
+#  Publicación de TIERRA BOMBA 3D en GitHub Pages
+# ==================================================================
+#  POR QUÉ HACE FALTA ESTE FLUJO
+#
+#  La plataforma es una aplicación Next.js que compila a un sitio
+#  estático en `out/`. GitHub Pages, configurado en modo «rama», sirve
+#  los archivos tal cual están en el repositorio: nunca miraría `out/`.
+#  Por eso el sitio publicado seguía siendo el visor antiguo de
+#  `scripts/web/viewer.html` mientras la aplicación nueva no se veía.
+#
+#  Este flujo compila y publica el artefacto correcto.
+#
+#  SOBRE NEXT_PUBLIC_BASE_PATH
+#    Pages sirve el proyecto en /tierrabomba-3d/, no en la raíz. Sin
+#    esa variable los enlaces y los recursos darían 404.
+# ==================================================================
+
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Una sola publicación a la vez; si llega otro empuje, se cancela el anterior
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  compilar:
+    name: Compilar el sitio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Comprobar tipos
+        run: npm run typecheck
+
+      - name: Compilar
+        run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /tierrabomba-3d
+
+      - name: Preparar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir el artefacto
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  desplegar:
+    name: Desplegar
+    needs: compilar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - name: Desplegar en Pages
+        id: despliegue
+        uses: actions/deploy-pages@v4
