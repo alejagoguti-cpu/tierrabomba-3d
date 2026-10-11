@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tierra Bomba 3D — Tesis de grado</title>
+<meta name="description" content="Pipeline geoespacial y modelo 3D web de la tesis de reubicación y resiliencia costera en la isla de Tierra Bomba, Cartagena de Indias." />
+<style>
+  :root {
+    --fondo: #0d1117;
+    --panel: #161b22;
+    --borde: #30363d;
+    --texto: #e6edf3;
+    --suave: #8b949e;
+    --acento: #2f81f7;
+    --arena: #c9a227;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--fondo); color: var(--texto); line-height: 1.65;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 40px 24px;
+    /* Degradado sutil que evoca el mar Caribe */
+    background-image:
+      radial-gradient(ellipse 90% 55% at 50% -10%, rgba(47,129,247,.20), transparent),
+      radial-gradient(ellipse 70% 45% at 50% 110%, rgba(201,162,39,.12), transparent);
+    background-attachment: fixed;
+  }
+  .contenedor { width: 100%; max-width: 760px; }
+
+  .etiqueta {
+    display: inline-block; font-size: 11px; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--arena);
+    border: 1px solid rgba(201,162,39,.35); border-radius: 999px;
+    padding: 5px 14px; margin-bottom: 22px;
+  }
+  h1 {
+    font-size: clamp(30px, 6vw, 50px); font-weight: 700;
+    letter-spacing: -1px; line-height: 1.1; margin-bottom: 16px;
+  }
+  h1 span {
+    background: linear-gradient(100deg, var(--acento), var(--arena));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .entradilla { color: var(--suave); font-size: 16px; max-width: 60ch; margin-bottom: 34px; }
+
+  .acciones { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 46px; }
+  .boton {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 13px 24px; border-radius: 9px; font-size: 14.5px;
+    font-weight: 600; text-decoration: none; transition: all .16s;
+    border: 1px solid transparent;
+  }
+  .boton.principal { background: var(--acento); color: #fff; }
+  .boton.principal:hover { background: #4a95f8; transform: translateY(-1px); }
+  .boton.secundario {
+    background: var(--panel); color: var(--texto); border-color: var(--borde);
+  }
+  .boton.secundario:hover { border-color: var(--suave); transform: translateY(-1px); }
+
+  .rejilla {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+    gap: 14px; margin-bottom: 40px;
+  }
+  .tarjeta {
+    background: var(--panel); border: 1px solid var(--borde);
+    border-radius: 10px; padding: 18px;
+  }
+  .tarjeta h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .9px;
+    color: var(--suave); margin-bottom: 9px; font-weight: 600;
+  }
+  .tarjeta .valor { font-size: 23px; font-weight: 700; letter-spacing: -.4px; }
+  .tarjeta .nota { font-size: 12px; color: var(--suave); margin-top: 3px; }
+
+  .enlaces { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13.5px; }
+  .enlaces a { color: var(--suave); text-decoration: none; border-bottom: 1px solid transparent; }
+  .enlaces a:hover { color: var(--acento); border-bottom-color: var(--acento); }
+
+  footer {
+    margin-top: 52px; padding-top: 22px; border-top: 1px solid var(--borde);
+    font-size: 12.5px; color: var(--suave);
+  }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <div class="etiqueta">Tesis de grado · Arquitectura &amp; Urbanismo · 2026</div>
+
+  <h1>Tierra Bomba <span>3D</span></h1>
+
+  <p class="entradilla">
+    Pipeline geoespacial y modelo tridimensional de la isla de Tierra Bomba,
+    Cartagena de Indias. Reubicación de equipamiento comunitario e infraestructura
+    hídrica autosuficiente frente a la erosión costera.
+  </p>
+
+  <div class="acciones">
+    <a class="boton principal" href="scripts/web/viewer.html">
+      ▶ &nbsp;Abrir el visor 3D
+    </a>
+    <a class="boton secundario" href="https://github.com/alejagoguti-cpu/tierrabomba-3d">
+      Ver el repositorio
+    </a>
+  </div>
+
+  <div class="rejilla">
+    <div class="tarjeta">
+      <h3>Modelo</h3>
+      <div class="valor">40,3 MB</div>
+      <div class="nota">glTF binario · comprimido un 73 %</div>
+    </div>
+    <div class="tarjeta">
+      <h3>Geometría</h3>
+      <div class="valor">1.087.522</div>
+      <div class="nota">triángulos en 4.472 mallas</div>
+    </div>
+    <div class="tarjeta">
+      <h3>Cota de reubicación</h3>
+      <div class="valor">+22,00 m</div>
+      <div class="nota">sobre el nivel del mar</div>
+    </div>
+    <div class="tarjeta">
+      <h3>Aljibe</h3>
+      <div class="valor">450.000 L</div>
+      <div class="nota">con cubierta captadora de 1.850 m²</div>
+    </div>
+  </div>
+
+  <div class="enlaces">
+    <a href="https://github.com/alejagoguti-cpu/tierrabomba-3d#readme">Documentación</a>
+    <a href="https://github.com/alejagoguti-cpu/tierrabomba-3d/blob/main/docs/metodologia.md">Metodología del pipeline</a>
+    <a href="https://github.com/alejagoguti-cpu/tierrabomba-3d/releases">Datos base (GPKG y Revit)</a>
+    <a href="https://github.com/alejagoguti-cpu/tesis">Plataforma web de la tesis</a>
+  </div>
+
+  <footer>
+    <strong>Alejandra Gómez &amp; Ana Casas</strong> — Tesis de Grado en Arquitectura &amp; Urbanismo, 2026.<br />
+    Herramientas: QGIS · Qgis2threejs · FreeCAD · three.js. Código bajo licencia MIT;
+    modelo BIM y datos del territorio con todos los derechos reservados.
+  </footer>
+
+</div>
+</body>
+</html>
