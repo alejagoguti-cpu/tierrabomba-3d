@@ -1,0 +1,342 @@
+# -*- coding: utf-8 -*-
+"""
+terreno_a_solido.FCMacro
+==================================================================
+Macro de FreeCAD para modelar los solidos del proyecto de Tierra
+Bomba a partir de la malla del terreno exportada de Revit.
+
+QUE HACE
+--------
+  1. Importa la malla del terreno (OBJ o STL) como objeto Mesh.
+  2. Informa de su tamano, numero de caras y rango de cotas, para
+     verificar que la escala y la orientacion son correctas.
+  3. Construye el ALJIBE subterraneo (450.000 L) como solido
+     parametrico.
+  4. Construye la losa de CUBIERTA CAPTADORA (1.850 m2).
+  5. Opcionalmente convierte la malla en solido (Part) para operaciones
+     booleanas. AVISO: con ~1,1 millones de caras esto es MUY lento y
+     consume mucha memoria; viene desactivado por defecto.
+  6. Exporta los solidos a STEP y STL.
+
+COMO USARLA
+-----------
+  FreeCAD -> Macro -> Macros... -> Crear -> nombrar
+  "terreno_a_solido" -> Pegar este contenido -> Guardar -> Ejecutar
+
+  O bien: Macro -> Macros... -> seleccionar -> Ejecutar
+
+REQUISITOS
+----------
+  FreeCAD 0.20 o superior (probado con la API de Part y Mesh, estable
+  desde 0.19). No requiere complementos externos.
+
+NOTA SOBRE UNIDADES
+-------------------
+  Revit exporta en milimetros si el modelo esta en sistema metrico
+  interno. El OBJ del terreno trae valores del orden de -1000 a +1000.
+  Si al importar el rango de cotas no coincide con la realidad de la
+  isla, ajusta FACTOR_ESCALA antes de seguir.
+==================================================================
+"""
+
+import os
+import sys
+
+# ==================================================================
+#  PARAMETROS DEL PROYECTO  <- edita aqui
+# ==================================================================
+
+# --- Archivo de entrada -------------------------------------------
+# Deja la ruta del OBJ de Revit, o cambiala por el STL.
+RUTA_MALLA = r"C:\Users\aleja\OneDrive\Documentos\TIERRABOMBA - 3D View - {3D}.obj"
+
+# Factor de escala a aplicar a la malla importada.
+# 1.0    -> la malla ya esta en metros
+# 0.001  -> la malla viene en milimetros
+FACTOR_ESCALA = 1.0
+
+# --- Cotas del proyecto (m s. n. m.) ------------------------------
+COTA_SEGURA = 22.00        # meseta de reubicacion
+COTA_ALJIBE = 14.00        # fondo del aljibe (bajo la meseta)
+
+# --- Aljibe subterraneo: 450.000 litros = 450 m3 ------------------
+ALJIBE_LARGO = 15.00       # m
+ALJIBE_ANCHO = 10.00       # m
+ALJIBE_ALTO = 3.00         # m    (15 x 10 x 3 = 450 m3)
+ALJIBE_ESPESOR_MURO = 0.30 # m
+
+# --- Cubierta captadora: 1.850 m2 --------------------------------
+CUBIERTA_LARGO = 61.67     # m   (61,67 x 30,00 = 1.850 m2)
+CUBIERTA_ANCHO = 30.00     # m
+CUBIERTA_ESPESOR = 0.25    # m
+PENDIENTE_CUBIERTA = 5.0   # grados, para evacuar el agua de lluvia
+
+# --- Opciones de proceso -----------------------------------------
+CONVERTIR_MALLA_A_SOLIDO = False   # MUY lento con 1,1 M de caras
+EXPORTAR = True
+CARPETA_SALIDA = r"C:\Users\aleja\OneDrive\Documentos\tierrabomba-3d\assets\modelos"
+
+
+# ==================================================================
+#  IMPLEMENTACION
+# ==================================================================
+
+def _log(msg):
+    print(f"[tierrabomba-3d] {msg}")
+
+
+def _documento():
+    """Devuelve (o crea) el documento de trabajo."""
+    import FreeCAD
+    nombre = "TierraBomba"
+    if nombre in FreeCAD.listDocuments():
+        return FreeCAD.getDocument(nombre)
+    return FreeCAD.newDocument(nombre)
+
+
+def importar_malla(doc, ruta, escala):
+    """
+    Importa la malla del terreno y reporta sus dimensiones reales.
+    Devuelve el objeto Mesh, o None si no se pudo importar.
+    """
+    import FreeCAD
+    import Mesh
+
+    if not os.path.exists(ruta):
+        _log(f"  ERROR: no existe el archivo de malla:\n         {ruta}")
+        return None
+
+    _log(f"  importando malla: {os.path.basename(ruta)}")
+    _log("  (con ~1,1 millones de caras puede tardar uno o dos minutos)")
+
+    try:
+        Mesh.insert(ruta, doc.Name)
+        doc.recompute()
+    except Exception as exc:  # noqa: BLE001
+        _log(f"  ERROR al importar la malla: {exc}")
+        return None
+
+    mallas = [o for o in doc.Objects if o.TypeId == "Mesh::Feature"]
+    if not mallas:
+        _log("  ERROR: no se creo ningun objeto de malla")
+        return None
+
+    malla = mallas[-1]
+    malla.Label = "Terreno_TierraBomba"
+
+    if escala != 1.0:
+        from FreeCAD import Vector
+        malla.Placement.Scale = Vector(escala, escala, escala)
+        doc.recompute()
+        _log(f"  escala aplicada: {escala}")
+
+    # Reporte de geometria: fundamental para detectar problemas de
+    # escala u orientacion antes de modelar encima.
+    caja = malla.Mesh.BoundBox
+    _log("  --- geometria importada ---")
+    _log(f"  caras      : {malla.Mesh.CountFacets:,}".replace(",", "."))
+    _log(f"  vertices   : {malla.Mesh.CountPoints:,}".replace(",", "."))
+    _log(f"  X          : {caja.XMin:9.2f}  a  {caja.XMax:9.2f}   ({caja.XLength:.2f} m)")
+    _log(f"  Y          : {caja.YMin:9.2f}  a  {caja.YMax:9.2f}   ({caja.YLength:.2f} m)")
+    _log(f"  Z (cotas)  : {caja.ZMin:9.2f}  a  {caja.ZMax:9.2f}   ({caja.ZLength:.2f} m)")
+
+    if caja.ZLength > 500:
+        _log("  AVISO: el rango de cotas supera los 500 m. Si la isla no")
+        _log("         tiene ese relieve, la malla esta en milimetros:")
+        _log("         pon FACTOR_ESCALA = 0.001 y vuelve a ejecutar.")
+
+    return malla
+
+
+def crear_aljibe(doc, malla):
+    """
+    Crea el aljibe subterraneo como solido parametrico:
+    un volumen exterior hueco (paredes + fondo), abierto por arriba.
+    """
+    import Part
+    from FreeCAD import Vector
+
+    _log("  construyendo el aljibe (450.000 L)")
+
+    base = malla.Mesh.BoundBox if malla else None
+    x0 = (base.XMin + base.XMax) / 2 - ALJIBE_LARGO / 2 if base else 0.0
+    y0 = (base.YMin + base.YMax) / 2 - ALJIBE_ANCHO / 2 if base else 0.0
+    z0 = COTA_ALJIBE
+
+    # Volumen exterior
+    exterior = Part.makeBox(
+        ALJIBE_LARGO, ALJIBE_ANCHO, ALJIBE_ALTO,
+        Vector(x0, y0, z0),
+    )
+
+    # Volumen interior (el hueco), sobredimensionado en altura para
+    # que el corte superior deje el aljibe abierto.
+    interior = Part.makeBox(
+        ALJIBE_LARGO - 2 * ALJIBE_ESPESOR_MURO,
+        ALJIBE_ANCHO - 2 * ALJIBE_ESPESOR_MURO,
+        ALJIBE_ALTO,
+        Vector(x0 + ALJIBE_ESPESOR_MURO, y0 + ALJIBE_ESPESOR_MURO,
+               z0 + ALJIBE_ESPESOR_MURO),
+    )
+
+    aljibe = exterior.cut(interior)
+
+    obj = doc.addObject("Part::Feature", "Aljibe_450000L")
+    obj.Shape = aljibe
+    obj.ViewObject.ShapeColor = (0.20, 0.45, 0.70)
+
+    volumen = ALJIBE_LARGO * ALJIBE_ANCHO * ALJIBE_ALTO
+    _log(f"  aljibe: {ALJIBE_LARGO} x {ALJIBE_ANCHO} x {ALJIBE_ALTO} m")
+    _log(f"  volumen bruto: {volumen:.1f} m3 = {volumen * 1000:.0f} litros")
+    _log(f"  cota del fondo: +{COTA_ALJIBE:.2f} m s. n. m.")
+
+    return obj
+
+
+def crear_cubierta(doc, malla):
+    """
+    Crea la losa de cubierta captadora de pluviales, inclinada
+    segun PENDIENTE_CUBIERTA para conducir el agua al aljibe.
+    """
+    import Part
+    import math
+    from FreeCAD import Vector, Rotation
+
+    _log("  construyendo la cubierta captadora (1.850 m2)")
+
+    base = malla.Mesh.BoundBox if malla else None
+    x0 = (base.XMin + base.XMax) / 2 - CUBIERTA_LARGO / 2 if base else 0.0
+    y0 = (base.YMin + base.YMax) / 2 - CUBIERTA_ANCHO / 2 if base else 0.0
+
+    losa = Part.makeBox(
+        CUBIERTA_LARGO, CUBIERTA_ANCHO, CUBIERTA_ESPESOR,
+        Vector(0, 0, 0),
+    )
+
+    # Inclinacion: giro sobre el eje X, para que el agua escurra
+    # hacia el lado -Y.
+    losa.rotate(Vector(0, 0, 0), Vector(1, 0, 0), PENDIENTE_CUBIERTA)
+    losa.translate(Vector(x0, y0, COTA_SEGURA))
+
+    obj = doc.addObject("Part::Feature", "Cubierta_Captadora_1850m2")
+    obj.Shape = losa
+    obj.ViewObject.ShapeColor = (0.85, 0.55, 0.25)
+
+    area = CUBIERTA_LARGO * CUBIERTA_ANCHO
+    _log(f"  cubierta: {CUBIERTA_LARGO:.2f} x {CUBIERTA_ANCHO:.2f} m")
+    _log(f"  area de captacion: {area:.0f} m2")
+    _log(f"  pendiente: {PENDIENTE_CUBIERTA:.1f} grados")
+    _log(f"  cota: +{COTA_SEGURA:.2f} m s. n. m.")
+
+    return obj
+
+
+def convertir_a_solido(doc, malla):
+    """
+    Convierte la malla del terreno en una forma de Part para poder
+    hacer operaciones booleanas.
+
+    AVISO SERIO: con 1,1 millones de caras FreeCAD puede tardar
+    decenas de minutos y agotar la memoria. Usalo solo si de verdad
+    necesitas booleanas contra el terreno.
+    """
+    import Part
+    import FreeCAD
+
+    _log("  convirtiendo la malla a solido (operacion lenta, paciencia)")
+
+    try:
+        forma = Part.Shape()
+        forma.makeShapeFromMesh(malla.Mesh.Topology, 0.5)
+        forma.sewShape()
+        solido = Part.makeSolid(forma)
+
+        obj = doc.addObject("Part::Feature", "Terreno_Solido")
+        obj.Shape = solido
+        obj.ViewObject.ShapeColor = (0.38, 0.29, 0.24)
+        doc.recompute()
+
+        _log(f"  solido creado: {solido.Volume / 1e6:.2f} millones de m3")
+        return obj
+    except Exception as exc:  # noqa: BLE001
+        _log(f"  ERROR en la conversion: {exc}")
+        _log("  Truco: reduce la malla en Mesh Design > Decimar antes de convertir.")
+        return None
+
+
+def exportar(doc, carpeta):
+    """Exporta los solidos a STEP y STL."""
+    import Mesh
+    import Part
+
+    os.makedirs(carpeta, exist_ok=True)
+
+    solidos = [o for o in doc.Objects if o.TypeId == "Part::Feature"]
+    if not solidos:
+        _log("  no hay solidos que exportar")
+        return
+
+    # STEP: conserva la geometria parametrica exacta.
+    ruta_step = os.path.join(carpeta, "tierrabomba_solidos.step")
+    try:
+        Part.export(solidos, ruta_step)
+        kb = os.path.getsize(ruta_step) / 1024
+        _log(f"  exportado STEP: {os.path.basename(ruta_step)} ({kb:.0f} KB)")
+    except Exception as exc:  # noqa: BLE001
+        _log(f"  ERROR al exportar STEP: {exc}")
+
+    # STL: para impresion 3D o visualizacion rapida.
+    ruta_stl = os.path.join(carpeta, "tierrabomba_solidos.stl")
+    try:
+        Mesh.export(solidos, ruta_stl)
+        mb = os.path.getsize(ruta_stl) / 1024 / 1024
+        _log(f"  exportado STL : {os.path.basename(ruta_stl)} ({mb:.1f} MB)")
+    except Exception as exc:  # noqa: BLE001
+        _log(f"  ERROR al exportar STL: {exc}")
+
+
+def main():
+    import FreeCAD
+
+    print()
+    print("=" * 66)
+    print("  TIERRA BOMBA 3D - Modelado de solidos en FreeCAD")
+    print("=" * 66)
+
+    doc = _documento()
+    _log(f"documento: {doc.Name}")
+
+    malla = importar_malla(doc, RUTA_MALLA, FACTOR_ESCALA)
+
+    if malla is None:
+        _log("se continua SIN la malla: los solidos se crearan en el origen")
+
+    print()
+    crear_aljibe(doc, malla)
+    crear_cubierta(doc, malla)
+
+    if CONVERTIR_MALLA_A_SOLIDO:
+        print()
+        convertir_a_solido(doc, malla)
+
+    doc.recompute()
+
+    if EXPORTAR:
+        print()
+        _log("exportando resultados")
+        exportar(doc, CARPETA_SALIDA)
+
+    try:
+        FreeCAD.Gui.ActiveDocument.ActiveView.viewAxometric()
+        FreeCAD.Gui.SendMsgToActiveView("ViewFit")
+    except Exception:  # noqa: BLE001
+        pass  # Sin interfaz grafica (modo consola): no hay nada que encuadrar.
+
+    print()
+    print("=" * 66)
+    _log("LISTO")
+    print("=" * 66)
+    print()
+
+
+main()

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tierra Bomba 3D — Visor del modelo</title>
+<style>
+  :root {
+    --fondo: #0d1117;
+    --panel: rgba(22, 27, 34, 0.92);
+    --borde: #30363d;
+    --texto: #e6edf3;
+    --suave: #8b949e;
+    --acento: #2f81f7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--fondo); }
+  body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--texto); }
+  canvas { display: block; }
+
+  .panel {
+    position: fixed; top: 16px; left: 16px; width: 296px;
+    background: var(--panel); border: 1px solid var(--borde); border-radius: 10px;
+    backdrop-filter: blur(8px); padding: 14px 16px; font-size: 13px;
+    max-height: calc(100vh - 32px); overflow-y: auto;
+  }
+  .panel h1 { margin: 0 0 2px; font-size: 15px; letter-spacing: .2px; }
+  .panel .sub { color: var(--suave); font-size: 11px; margin-bottom: 12px; }
+  .panel h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--suave); margin: 16px 0 8px; border-top: 1px solid var(--borde); padding-top: 12px;
+  }
+  .panel h2:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+
+  .fila { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; }
+  .fila input { accent-color: var(--acento); cursor: pointer; }
+  .muestra { width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(255,255,255,.25); flex: 0 0 auto; }
+  .fila .nombre { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fila .cuenta { color: var(--suave); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  input[type="range"] { width: 100%; accent-color: var(--acento); }
+  .btn {
+    width: 100%; margin-top: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer;
+    background: #21262d; color: var(--texto); border: 1px solid var(--borde); border-radius: 6px;
+  }
+  .btn:hover { background: #30363d; border-color: #8b949e; }
+
+  .datos { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 12px; }
+  .datos dt { color: var(--suave); }
+  .datos dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+  #carga {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    background: var(--fondo); z-index: 20; transition: opacity .5s;
+  }
+  #carga.oculto { opacity: 0; pointer-events: none; }
+  #carga .titulo { font-size: 14px; letter-spacing: .3px; }
+  #barra { width: 260px; height: 4px; background: #21262d; border-radius: 4px; overflow: hidden; }
+  #barra div { height: 100%; width: 0; background: var(--acento); transition: width .2s; }
+  #carga .nota { color: var(--suave); font-size: 11px; }
+
+  #error {
+    position: fixed; inset: 0; display: none; flex-direction: column; gap: 10px;
+    align-items: center; justify-content: center; text-align: center; padding: 40px;
+    background: var(--fondo); z-index: 30; font-size: 13px; line-height: 1.6;
+  }
+  #error code { background: #161b22; border: 1px solid var(--borde); padding: 8px 12px; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<div id="carga">
+  <div class="titulo">Cargando modelo de Tierra Bomba…</div>
+  <div id="barra"><div></div></div>
+  <div class="nota" id="carga-nota">40,3 MB · 1.087.522 triángulos</div>
+</div>
+
+<div id="error">
+  <strong>No se pudo cargar el modelo</strong>
+  <div>El navegador bloquea los archivos locales por CORS.<br />Hay que servirlo por HTTP:</div>
+  <code>npm run dev</code>
+  <div class="nota" id="error-detalle" style="color:var(--suave);font-size:11px"></div>
+</div>
+
+<div class="panel">
+  <h1>Tierra Bomba 3D</h1>
+  <div class="sub">Isla de Tierra Bomba · Cartagena de Indias</div>
+
+  <h2>Capas por material</h2>
+  <div id="capas"></div>
+
+  <h2>Vista</h2>
+  <label class="fila" style="cursor:default">
+    <span class="nombre">Despiece vertical</span>
+    <span class="cuenta" id="despiece-val">0 m</span>
+  </label>
+  <input type="range" id="despiece" min="0" max="100" value="0" />
+  <button class="btn" id="reiniciar">Encuadrar todo el modelo</button>
+  <button class="btn" id="alternar-todas">Alternar todas las capas</button>
+
+  <h2>Estadísticas</h2>
+  <dl class="datos">
+    <dt>Mallas</dt><dd id="s-mallas">—</dd>
+    <dt>Triángulos</dt><dd id="s-triangulos">—</dd>
+    <dt>Materiales</dt><dd id="s-materiales">—</dd>
+    <dt>FPS</dt><dd id="s-fps">—</dd>
+  </dl>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ---------------------------------------------------------------
+//  Escena base
+// ---------------------------------------------------------------
+const escena = new THREE.Scene();
+escena.background = new THREE.Color(0x0d1117);
+escena.fog = new THREE.Fog(0x0d1117, 1500, 6000);
+
+const camara = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.5, 20000);
+camara.position.set(900, 700, 900);
+
+const renderizador = new THREE.WebGLRenderer({ antialias: true });
+renderizador.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderizador.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderizador.domElement);
+
+const controles = new OrbitControls(camara, renderizador.domElement);
+controles.enableDamping = true;
+controles.dampingFactor = 0.08;
+
+// ---------------------------------------------------------------
+//  Iluminación caribeña: sol alto + rebote del mar
+// ---------------------------------------------------------------
+const sol = new THREE.DirectionalLight(0xfff3e0, 2.4);
+sol.position.set(1, 1.6, 0.8).multiplyScalar(1000);
+escena.add(sol);
+
+const hemisferio = new THREE.HemisphereLight(0xbfe3ff, 0x6b5a45, 1.15);
+escena.add(hemisferio);
+
+escena.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+// ---------------------------------------------------------------
+//  Carga del GLB
+// ---------------------------------------------------------------
+const barra = document.querySelector('#barra div');
+const capaCarga = document.getElementById('carga');
+
+let modelo = null;
+const grupos = new Map();      // nombre de material -> { mallas: [], color, visible }
+const posicionesBase = new WeakMap();
+
+const cargador = new GLTFLoader();
+
+cargador.load(
+  '../../assets/modelos/TIERRABOMBA.glb',
+  (gltf) => {
+    modelo = gltf.scene;
+
+    modelo.traverse((obj) => {
+      if (!obj.isMesh) return;
+
+      posicionesBase.set(obj, obj.position.clone());
+
+      const mat = obj.material;
+      const clave = mat?.name || 'sin-material';
+      const color = mat?.color ? '#' + mat.color.getHexString() : '#808080';
+
+      if (!grupos.has(clave)) {
+        grupos.set(clave, { mallas: [], color, visible: true, triangulos: 0 });
+      }
+      const grupo = grupos.get(clave);
+      grupo.mallas.push(obj);
+      const geo = obj.geometry;
+      grupo.triangulos += geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;
+    });
+
+    escena.add(modelo);
+
+    encuadrar(modelo);
+    construirPanelCapas();
+    actualizarEstadisticas();
+
+    capaCarga.classList.add('oculto');
+    setTimeout(() => capaCarga.remove(), 600);
+  },
+  (evento) => {
+    if (evento.lengthComputable) {
+      barra.style.width = (100 * evento.loaded / evento.total).toFixed(1) + '%';
+    }
+  },
+  (err) => {
+    document.getElementById('carga').style.display = 'none';
+    document.getElementById('error').style.display = 'flex';
+    document.getElementById('error-detalle').textContent = String(err?.message ?? err);
+    console.error(err);
+  }
+);
+
+// ---------------------------------------------------------------
+//  Encuadre automático
+// ---------------------------------------------------------------
+function encuadrar(objeto) {
+  const caja = new THREE.Box3().setFromObject(objeto);
+  const tamano = caja.getSize(new THREE.Vector3());
+  const centro = caja.getCenter(new THREE.Vector3());
+
+  controles.target.copy(centro);
+
+  const radio = Math.max(tamano.x, tamano.y, tamano.z);
+  const distancia = radio / (2 * Math.tan((camara.fov * Math.PI / 180) / 2)) * 1.15;
+
+  camara.position.set(
+    centro.x + distancia * 0.75,
+    centro.y + distancia * 0.62,
+    centro.z + distancia * 0.75
+  );
+  camara.near = radio / 1000;
+  camara.far = radio * 20;
+  camara.updateProjectionMatrix();
+  controles.update();
+
+  escena.fog.near = radio * 1.2;
+  escena.fog.far = radio * 6;
+
+  document.getElementById('carga-nota').textContent =
+    `Extensión: ${tamano.x.toFixed(0)} × ${tamano.y.toFixed(0)} × ${tamano.z.toFixed(0)} unidades`;
+}
+
+// ---------------------------------------------------------------
+//  Panel de capas (una por material)
+// ---------------------------------------------------------------
+function construirPanelCapas() {
+  const contenedor = document.getElementById('capas');
+  contenedor.innerHTML = '';
+
+  const ordenados = [...grupos.entries()].sort((a, b) => b[1].mallas.length - a[1].mallas.length);
+
+  for (const [nombre, grupo] of ordenados) {
+    const fila = document.createElement('label');
+    fila.className = 'fila';
+    fila.innerHTML = `
+      <input type="checkbox" checked />
+      <span class="muestra" style="background:${grupo.color}"></span>
+      <span class="nombre" title="${nombre}">${nombre.replace(/_/g, ' ')}</span>
+      <span class="cuenta">${grupo.mallas.length}</span>
+    `;
+    fila.querySelector('input').addEventListener('change', (e) => {
+      grupo.visible = e.target.checked;
+      for (const m of grupo.mallas) m.visible = grupo.visible;
+    });
+    contenedor.appendChild(fila);
+  }
+}
+
+// ---------------------------------------------------------------
+//  Despiece vertical
+// ---------------------------------------------------------------
+const controlDespiece = document.getElementById('despiece');
+const valorDespiece = document.getElementById('despiece-val');
+
+controlDespiece.addEventListener('input', () => {
+  const t = Number(controlDespiece.value) / 100;
+  valorDespiece.textContent = `${(t * 120).toFixed(0)} m`;
+  aplicarDespiece(t);
+});
+
+function aplicarDespiece(t) {
+  if (!modelo) return;
+  const caja = new THREE.Box3().setFromObject(modelo);
+  const altura = caja.max.y - caja.min.y;
+
+  for (const [, grupo] of grupos) {
+    for (const malla of grupo.mallas) {
+      const base = posicionesBase.get(malla);
+      if (!base) continue;
+      // Cada capa se separa en proporcion a su cota: lo mas alto sube mas.
+      const factor = (base.y - caja.min.y) / (altura || 1);
+      malla.position.y = base.y + t * altura * 0.9 * (0.35 + factor);
+    }
+  }
+}
+
+// ---------------------------------------------------------------
+//  Botones
+// ---------------------------------------------------------------
+document.getElementById('reiniciar').addEventListener('click', () => {
+  if (modelo) encuadrar(modelo);
+});
+
+document.getElementById('alternar-todas').addEventListener('click', () => {
+  const casillas = document.querySelectorAll('#capas input[type="checkbox"]');
+  const destino = ![...casillas].every((c) => c.checked);
+  casillas.forEach((c) => {
+    c.checked = destino;
+    c.dispatchEvent(new Event('change'));
+  });
+});
+
+// ---------------------------------------------------------------
+//  Estadísticas y bucle de render
+// ---------------------------------------------------------------
+let mallasTotales = 0;
+let triangulosTotales = 0;
+
+function actualizarEstadisticas() {
+  for (const [, g] of grupos) {
+    mallasTotales += g.mallas.length;
+    triangulosTotales += g.triangulos;
+  }
+  document.getElementById('s-mallas').textContent = mallasTotales.toLocaleString('es-CO');
+  document.getElementById('s-triangulos').textContent = Math.round(triangulosTotales).toLocaleString('es-CO');
+  document.getElementById('s-materiales').textContent = grupos.size;
+}
+
+let frames = 0;
+let ultimo = performance.now();
+
+function animar() {
+  requestAnimationFrame(animar);
+  controles.update();
+  renderizador.render(escena, camara);
+
+  frames++;
+  const ahora = performance.now();
+  if (ahora - ultimo >= 1000) {
+    document.getElementById('s-fps').textContent = frames;
+    frames = 0;
+    ultimo = ahora;
+  }
+}
+animar();
+
+addEventListener('resize', () => {
+  camara.aspect = innerWidth / innerHeight;
+  camara.updateProjectionMatrix();
+  renderizador.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+# ============================================================
+#  Git LFS — activos binarios pesados
+# ============================================================
+#  GitHub rechaza archivos > 100 MB y avisa desde 50 MB.
+#
+#  CRITERIO DE ESTE REPOSITORIO
+#  ----------------------------
+#  Los ENTREGABLES WEB (*.glb, *.gltf, *.stl) NO van a LFS a
+#  proposito: pesan menos de 50 MB y asi cualquiera puede clonar
+#  el repositorio y ver el visor SIN instalar git-lfs. Para un
+#  repositorio publico de tesis eso vale mas que ahorrar unos MB.
+#
+#  A LFS van solo los ORIGINALES PESADOS que manejan las autoras
+#  (Revit, GPKG, rasteres, LIDAR, diseno grafico).
+
+# --- Originales 3D de gran tamano ---
+*.obj   filter=lfs diff=lfs merge=lfs -text
+*.fbx   filter=lfs diff=lfs merge=lfs -text
+*.dae   filter=lfs diff=lfs merge=lfs -text
+*.3dm   filter=lfs diff=lfs merge=lfs -text
+*.skp   filter=lfs diff=lfs merge=lfs -text
+
+# --- Modelo BIM (Revit) ---
+*.rvt   filter=lfs diff=lfs merge=lfs -text
+*.rfa   filter=lfs diff=lfs merge=lfs -text
+*.rte   filter=lfs diff=lfs merge=lfs -text
+
+# --- Datos geoespaciales ---
+*.gpkg  filter=lfs diff=lfs merge=lfs -text
+*.shp   filter=lfs diff=lfs merge=lfs -text
+*.dbf   filter=lfs diff=lfs merge=lfs -text
+*.tif   filter=lfs diff=lfs merge=lfs -text
+*.tiff  filter=lfs diff=lfs merge=lfs -text
+*.las   filter=lfs diff=lfs merge=lfs -text
+*.laz   filter=lfs diff=lfs merge=lfs -text
+*.dem   filter=lfs diff=lfs merge=lfs -text
+
+# --- Diseno grafico ---
+*.ai    filter=lfs diff=lfs merge=lfs -text
+*.psd   filter=lfs diff=lfs merge=lfs -text
+*.afdesign filter=lfs diff=lfs merge=lfs -text
+
+# --- NO van a LFS (entregables web y texto) ---
+# *.glb   *.gltf   *.stl
+# *.qml  *.qgs  *.py  *.mjs  *.js  *.md  *.json  *.csv  *.geojson  *.pdf

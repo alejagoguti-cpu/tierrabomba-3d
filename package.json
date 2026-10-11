@@ -1,0 +1,17 @@
+{
+  "name": "tierrabomba-3d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pipeline geoespacial y modelo 3D web para la tesis de reubicacion y resiliencia costera en Tierra Bomba, Cartagena",
+  "type": "module",
+  "license": "MIT",
+  "author": "Alejandra Gomez & Ana Casas",
+  "scripts": {
+    "convert": "node scripts/web/convertir_obj_a_glb.mjs",
+    "inspector": "node scripts/web/inspeccionar_glb.mjs assets/modelos/TIERRABOMBA.glb",
+    "dev": "node scripts/web/servir.mjs"
+  },
+  "devDependencies": {
+    "obj2gltf": "^3.2.0"
+  }
+}

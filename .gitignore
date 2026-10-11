@@ -1,0 +1,57 @@
+# ============================================================
+#  Dependencias y cachés de herramientas
+# ============================================================
+node_modules/
+.npm-cache/
+.npm/
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.cache/
+.pytest_cache/
+
+# ============================================================
+#  Salidas de build web
+# ============================================================
+dist/
+build/
+.vite/
+*.local
+
+# ============================================================
+#  Backups automáticos de Revit y AutoCAD
+#  (las versiones numeradas son redundantes: conservamos solo
+#   TIERRABOMBA.rvt y TOPOGRAFIA1.rvt canónicos)
+# ============================================================
+*.[0-9][0-9][0-9][0-9].rvt
+*.rws
+*.slog
+*.dwl
+*.dwl2
+*.bak
+*.sv$
+*.pcp
+*.log
+plot.log
+$RECYCLE.BIN/
+
+# ============================================================
+#  Basura del sistema operativo
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+~$*
+
+# ============================================================
+#  Secretos — nunca al repositorio público
+# ============================================================
+.env
+.env.*
+CLAVES.txt
+*.pem
+*.key
+credentials.json
