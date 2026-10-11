@@ -9,7 +9,9 @@
   "scripts": {
     "convert": "node scripts/web/convertir_obj_a_glb.mjs",
     "inspector": "node scripts/web/inspeccionar_glb.mjs assets/modelos/TIERRABOMBA.glb",
-    "dev": "node scripts/web/servir.mjs"
+    "dev": "node scripts/web/servir.mjs",
+    "limite-osm": "node scripts/datos/obtener_limite_osm.mjs",
+    "terria": "node scripts/web/servir.mjs"
   },
   "devDependencies": {
     "obj2gltf": "^3.2.0"

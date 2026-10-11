@@ -1,0 +1,73 @@
+{
+  "corsDomains": [
+    "alejagoguti-cpu.github.io",
+    "raw.githubusercontent.com"
+  ],
+  "viewerMode": "3d",
+  "homeCamera": {
+    "north": 10.38149,
+    "south": 10.31803,
+    "west": -75.59341,
+    "east": -75.53745
+  },
+  "initialCamera": {
+    "lookAt": {
+      "targetLongitude": -75.5705,
+      "targetLatitude": 10.34975,
+      "targetHeight": 22,
+      "heading": 0,
+      "pitch": -45,
+      "range": 3000
+    }
+  },
+  "catalog": [
+    {
+      "type": "group",
+      "name": "Tesis Tierra Bomba",
+      "members": [
+        {
+          "type": "group",
+          "name": "Diagnostico territorial",
+          "members": [
+            {
+              "type": "geojson",
+              "name": "Limite de la isla (OpenStreetMap)",
+              "id": "limite-isla-osm",
+              "url": "https://alejagoguti-cpu.github.io/tierrabomba-3d/data/ligero/limite_isla.geojson",
+              "attribution": "(c) OpenStreetMap contributors - ODbL 1.0",
+              "description": "Limite insular descargado de OpenStreetMap mediante Nominatim y simplificado con una tolerancia de 0,0001 grados (~11 m). Sirve como capa de referencia y encuadre del area de estudio.<br/><br/><b>Aviso:</b> es un limite de la comunidad OSM, no un levantamiento topografico. No debe usarse para calculos de area o de retroceso costero."
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "name": "Modelo 3D propuesto",
+          "members": [
+            {
+              "type": "gltf",
+              "name": "Equipamiento comunitario (BIM de Revit)",
+              "id": "equipamiento-bim",
+              "url": "https://alejagoguti-cpu.github.io/tierrabomba-3d/assets/modelos/TIERRABOMBA.glb",
+              "attribution": "Modelo BIM: Alejandra Gomez & Ana Casas, 2026",
+              "origin": {
+                "longitude": -75.5705,
+                "latitude": 10.34975,
+                "height": 22
+              },
+              "upAxis": "Z",
+              "heightReference": "NONE",
+              "scale": 1,
+              "initialMessage": {
+                "title": "Modelo pendiente de georreferenciar",
+                "content": "El modelo se ha colocado en el centro de la isla como posicion provisional.<br/><br/>El OBJ exportado de Revit esta en <b>coordenadas internas del proyecto</b>, sin sistema de referencia. Para situarlo correctamente hay que sustituir <code>origin.longitude</code>, <code>origin.latitude</code> y <code>origin.height</code> por las coordenadas reales de un punto conocido del modelo (por ejemplo, la esquina del lote).<br/><br/>Consulta el apartado «Georreferenciacion» del README de <code>scripts/terria/</code>.",
+                "key": "aviso-georreferenciacion",
+                "confirmation": false,
+                "width": 480
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

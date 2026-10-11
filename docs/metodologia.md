@@ -204,7 +204,121 @@ Activación: **Settings ▸ Pages ▸ Source: GitHub Actions** (o rama `gh-pages
 
 ---
 
-## 7. Reproducibilidad
+## 7. Fase 6 — Análisis y publicación territorial
+
+Las dos fases anteriores producen visualizaciones de **presentación**. Para el **análisis**
+y para situar el proyecto en su contexto geográfico real se añaden dos herramientas.
+
+### 7.1 Criterio de elección
+
+Las tres visualizaciones no compiten: responden a preguntas distintas.
+
+| Herramienta | Pregunta | Sistema de coordenadas | Requiere cuenta |
+|---|---|---|---|
+| Visor propio (three.js) | ¿Cómo es el edificio? | Locales, sin referencia | No |
+| kepler.gl | ¿Qué dicen los datos? | WGS 84 / Web Mercator | Mapbox (a veces) |
+| TerriaMap | ¿Dónde está todo esto? | Absolutas + globo 3D | No |
+
+### 7.2 Datos abiertos de partida
+
+`scripts/datos/obtener_limite_osm.mjs` descarga el límite oficial de la isla desde
+OpenStreetMap (vía Nominatim) y lo simplifica con Douglas-Peucker.
+
+| Métrica | Valor |
+|---|---|
+| Consulta | `Isla Tierra Bomba, Cartagena de Indias, Colombia` |
+| Identificador OSM | `relation/11226348` |
+| Centro | 10,34975 N · −75,57050 O |
+| Caja envolvente | 10,31803 – 10,38149 N · −75,59341 – −75,53745 O |
+| Vértices descargados | 2.431 |
+| Vértices tras simplificar | **447** (−81,6 %) |
+| Tolerancia | 0,0001° (~11 m) |
+
+> **Limitación que hay que declarar en la memoria.** Es un límite de la comunidad
+> OpenStreetMap, **no un levantamiento topográfico**. Sirve para encuadrar y para el
+> diagnóstico general, pero **no** para calcular áreas ni tasas de retroceso costero:
+> para eso está el levantamiento propio. La capa va marcada con esta advertencia tanto
+> en su propio GeoJSON como en el catálogo de Terria.
+
+Licencia **ODbL 1.0**: la atribución «© OpenStreetMap contributors» es obligatoria.
+
+### 7.3 kepler.gl
+
+Herramienta de análisis para datos tabulares y vectoriales a gran escala (MIT, sobre deck.gl).
+
+**Tres vías de uso, de menor a mayor esfuerzo:**
+
+| Vía | Cómo | Cuándo usarla |
+|---|---|---|
+| Demo online | Arrastrar los archivos a <https://kepler.gl/demo> | Exploración rápida |
+| Python | `python scripts/kepler/generar_mapa_kepler.py` | Resultado reproducible y versionable |
+| React | `@kepler.gl/components` + Redux | Solo si hay que integrarlo en una web |
+
+**Restricción crítica:** kepler.gl **solo acepta WGS 84 (EPSG:4326) o Web Mercator
+(EPSG:3857)**. El análisis del proyecto se hace en UTM 18N (EPSG:32618) porque es el huso
+métrico correcto para Cartagena. Por eso `exportar_capas_para_kepler.py` reproyecta antes de
+exportar: cargar un archivo en UTM directamente produce un mapa mal situado.
+
+**Segunda restricción:** kepler.gl genera **una sola capa Polygon por archivo GeoJSON**,
+aunque el archivo mezcle puntos, líneas y polígonos. Por eso el script de exportación separa
+cada tipo de geometría en su propio archivo.
+
+**Formatos admitidos:** CSV, GeoJSON, GeoJSONL/NDJSON, KML (`.kmz` no), GPX, TCX, Shapefile,
+Excel, FlatGeobuf, GeoArrow, Arrow y Parquet.
+
+**Limitación:** los mapas base usan Mapbox, así que puede hacer falta un token gratuito.
+Es la única herramienta de la cadena que puede pedir una cuenta.
+
+### 7.4 TerriaMap
+
+Plataforma de visualización **basada en catálogo** (Apache-2.0): se declara un archivo JSON
+con las capas y la aplicación las presenta sobre un globo 3D (Cesium) o en 2D (Leaflet).
+
+**El catálogo** vive en `scripts/terria/catalogo-tierrabomba.json` y contiene:
+
+* `homeCamera` y `initialCamera` encuadrados sobre la isla.
+* Grupo **Diagnóstico territorial** con la capa del límite insular.
+* Grupo **Modelo 3D propuesto** con el modelo BIM.
+
+**Uso sin instalar nada** — basta pasar el catálogo en la URL:
+
+```
+https://terria.io/#https://alejagoguti-cpu.github.io/tierrabomba-3d/scripts/terria/catalogo-tierrabomba.json
+```
+
+**Georreferenciación del modelo BIM.** Es el punto delicado de toda la fase:
+
+1. El OBJ de Revit está en **coordenadas internas del proyecto**: no lleva referencia
+   geográfica alguna, así que Terria no puede saber dónde colocarlo.
+2. En el catálogo se sitúa provisionalmente en el centro de la isla, con un aviso visible.
+3. Hay que sustituir `origin.longitude`, `origin.latitude` y `origin.height` por las
+   coordenadas reales de un punto conocido del modelo.
+4. **`upAxis` debe ser `"Z"`.** Según la especificación glTF los modelos son *Y-arriba*,
+   pero las exportaciones de Revit y otros programas CAD son *Z-arriba*. Si el modelo
+   aparece tumbado, este es el campo que hay que revisar.
+5. Alternativa más robusta: usar el sistema de coordenadas compartidas de Revit
+   (*Manage ▸ Coordinates ▸ Specify Coordinates at Point*) para que la exportación salga
+   ya en coordenadas absolutas.
+
+### 7.5 Tipo de catálogo según el dato
+
+| Tipo | Para qué sirve aquí |
+|---|---|
+| `geojson` | Capas vectoriales del diagnóstico (límite, usos, zona segura) |
+| `gltf` | Modelos 3D georreferenciados (el equipamiento) |
+| `3d-tiles` | Mallas urbanas optimizadas de gran tamaño |
+| `csv` | Tablas con coordenadas (matriz de actores) |
+| `czml` | Animaciones temporales (evolución de la erosión) |
+| `cesium-terrain` | MDT como terreno real de Cesium |
+| `wms` / `wmts` | Servicios de mapas publicados desde GeoServer |
+
+> **Publicación.** TerriaMap es una aplicación de Node, **no un sitio estático**: no se puede
+> publicar directamente en GitHub Pages sin compilar. Para el jurado basta con usar la
+> instancia pública de Terria con el catálogo en la URL.
+
+---
+
+## 8. Reproducibilidad
 
 Para regenerar todo desde cero:
 
@@ -212,21 +326,35 @@ Para regenerar todo desde cero:
 git clone https://github.com/alejagoguti-cpu/tierrabomba-3d.git
 cd tierrabomba-3d
 npm install
-npm run convert      # requiere el OBJ original de Revit
-npm run inspector    # verifica el GLB
-npm run dev          # abre el visor
+npm run convert        # OBJ -> GLB        (requiere el OBJ original de Revit)
+npm run inspector      # verifica el GLB
+npm run limite-osm     # descarga el limite insular de OpenStreetMap
+npm run dev            # abre el visor propio
+
+python scripts/kepler/generar_mapa_kepler.py   # requiere: pip install keplergl
 ```
 
 Los pasos de QGIS y FreeCAD se ejecutan sobre sus propias aplicaciones,
-según lo descrito en las secciones 4 y 5.
+según lo descrito en las secciones 4 y 5. El catálogo de Terria no necesita
+compilación: se carga por URL.
 
 ---
 
-## 8. Referencias de las herramientas
+## 9. Referencias de las herramientas
 
 * QGIS — <https://qgis.org/> (GPL-3.0)
 * Qgis2threejs, Minoru Akagi — <https://github.com/minorua/Qgis2threejs> (GPL-3.0)
 * FreeCAD — <https://github.com/FreeCAD/FreeCAD> (LGPL-2.1)
 * three.js — <https://threejs.org/> (MIT)
 * obj2gltf, Cesium GS — <https://github.com/CesiumGS/obj2gltf> (Apache-2.0)
+* kepler.gl — <https://github.com/keplergl/kepler.gl> (MIT) ·
+  documentación: <https://docs.kepler.gl> ·
+  demo: <https://kepler.gl/demo>
+* keplergl para Python — <https://pypi.org/project/keplergl/>
+* TerriaMap — <https://github.com/TerriaJS/TerriaMap> (Apache-2.0) ·
+  documentación: <https://docs.terria.io>
+* Tipos de catálogo de Terria — <https://docs.terria.io/guide/connecting-to-data/catalog-type-details/>
+* CesiumJS — <https://cesium.com/platform/cesiumjs/> (Apache-2.0)
+* deck.gl — <https://deck.gl/> (MIT)
 * Especificación glTF 2.0 — <https://registry.khronos.org/glTF/> (Khronos Group)
+* OpenStreetMap — <https://www.openstreetmap.org/copyright> (ODbL 1.0)

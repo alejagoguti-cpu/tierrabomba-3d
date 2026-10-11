@@ -7,6 +7,8 @@
 [![Qgis2threejs](https://img.shields.io/badge/Qgis2threejs-plugin-blue)](https://github.com/minorua/Qgis2threejs)
 [![FreeCAD](https://img.shields.io/badge/FreeCAD-1.x-CB333B?style=flat&logo=freecad)](https://www.freecad.org/)
 [![Three.js](https://img.shields.io/badge/Three.js-WebGL-black?style=flat&logo=three.js)](https://threejs.org/)
+[![kepler.gl](https://img.shields.io/badge/kepler.gl-an%C3%A1lisis-6A5ACD)](https://github.com/keplergl/kepler.gl)
+[![TerriaMap](https://img.shields.io/badge/TerriaMap-globo%203D-2E8B57)](https://github.com/TerriaJS/TerriaMap)
 [![Git LFS](https://img.shields.io/badge/Git-LFS-F64935?style=flat&logo=git-lfs)](https://git-lfs.com/)
 
 ---
@@ -24,12 +26,24 @@ Es el gemelo técnico del repositorio [`tesis`](https://github.com/alejagoguti-c
 **Cadena de trabajo:**
 
 ```
-Revit (BIM)  ──►  OBJ / STL  ──►  GLB optimizado  ──►  visor three.js
-                     │
-QGIS (GIS)   ──►  Qgis2threejs  ──►  escena HTML         (web pública)
-                     │
-FreeCAD      ──►  sólidos del terreno, aljibe y cubierta
+                        ┌──►  GLB optimizado  ──►  visor three.js      (presentación)
+Revit (BIM) ──► OBJ ────┤
+                        └──►  glTF georreferenciado ──►  TerriaMap    (territorio 3D)
+
+QGIS (GIS)  ──►  análisis en UTM 18N  ──┬──►  Qgis2threejs  ──►  escena HTML
+                                        ├──►  GeoJSON 4326  ──►  kepler.gl   (análisis)
+                                        └──►  catálogo JSON ──►  TerriaMap
+
+FreeCAD     ──►  sólidos del terreno, aljibe y cubierta
 ```
+
+**Tres visores, tres propósitos distintos** (no son alternativas, se complementan):
+
+| Herramienta | Pregunta que responde | Precisión geográfica | Requiere cuenta |
+|---|---|---|---|
+| Visor propio (three.js) | ¿Cómo es el edificio? | Ninguna (coordenadas locales) | No |
+| **kepler.gl** | ¿Qué dicen los datos? | WGS 84 / Web Mercator | Mapbox (a veces) |
+| **TerriaMap** | ¿Dónde está todo esto? | Coordenadas absolutas + globo 3D | No |
 
 ---
 
@@ -48,17 +62,22 @@ FreeCAD      ──►  sólidos del terreno, aljibe y cubierta
 
 ```
 tierrabomba-3d/
+├── index.html            Página de entrada publicada en GitHub Pages
 ├── assets/
-│   ├── modelos/          Modelos 3D listos para web (GLB)          [LFS]
+│   ├── modelos/          Modelos 3D listos para web (GLB, STL)
 │   └── estilos-qgis/     Estilos .qml de las capas temáticas
 ├── data/
 │   ├── ligero/           GeoJSON, CSV y capas pequeñas versionables
-│   └── pesado/           GPKG, LAS y rásters                  [LFS / Releases]
+│   │   └── limite_isla.geojson     Límite insular (OpenStreetMap, ODbL)
+│   └── pesado/           GPKG, LAS y rásters                [Releases]
 ├── docs/                 Metodología, fichas técnicas y notas
 ├── scripts/
+│   ├── datos/            Descarga de datos abiertos (límite OSM)
 │   ├── qgis/             Preparación del terreno y export Qgis2threejs
 │   ├── freecad/          Macros de modelado de sólidos
-│   └── web/              Visor three.js y utilidades del GLB
+│   ├── web/              Visor three.js y utilidades del GLB
+│   ├── kepler/           Exportación y mapas de análisis (kepler.gl)
+│   └── terria/           Catálogo de datos para el globo 3D (TerriaMap)
 ├── .gitattributes        Reglas de Git LFS
 └── .gitignore            Exclusiones (backups de Revit, cachés, secretos)
 ```
@@ -94,26 +113,54 @@ npm run convert        # OBJ -> GLB
 
 ### 1. QGIS — preparar el terreno
 
-```bash
-# Copiar los scripts a tu perfil de QGIS y ejecutarlos desde la Consola de Python
-python scripts/qgis/01_preparar_terreno.py
-```
+Los scripts de QGIS **se ejecutan dentro de QGIS**, no con el Python del sistema:
+necesitan PyQGIS. Ábrelos en **Complementos ▸ Consola de Python ▸ Editor**.
 
-Luego, en QGIS: **Web ▸ Qgis2threejs ▸ Qgis2threejs Exporter** y usar la configuración
-descrita en [`docs/metodologia.md`](docs/metodologia.md).
+1. `scripts/qgis/01_preparar_terreno.py` → genera el MDT, la pendiente y la zona segura.
+2. **Web ▸ Qgis2threejs ▸ Qgis2threejs Exporter** con la configuración que imprime
+   `scripts/qgis/02_exportar_qgis2threejs.py`.
 
 ### 2. FreeCAD — sólidos del terreno
 
+**Macros ▸ Macros… ▸ Crear** y pegar el contenido de
+[`scripts/freecad/terreno_a_solido.FCMacro`](scripts/freecad/terreno_a_solido.FCMacro).
+Modela el aljibe de 450.000 L y la cubierta captadora de 1.850 m².
+
+### 3. Visor propio — presentación arquitectónica
+
 ```bash
-# Macros ▸ Macros… ▸ crear ▸ pegar el contenido de:
-scripts/freecad/terreno_a_solido.FCMacro
+npm install
+npm run dev            # -> http://localhost:5180
 ```
 
-### 3. Web — ver el modelo
+### 4. Datos abiertos — límite insular
 
 ```bash
-npm run dev            # sirve scripts/web/viewer.html en localhost
+npm run limite-osm     # descarga el límite de la isla desde OpenStreetMap
 ```
+
+Genera `data/ligero/limite_isla.geojson` (2.431 → 447 vértices, −82 %), la capa base
+que usan tanto kepler.gl como TerriaMap.
+
+### 5. kepler.gl — análisis de datos
+
+```bash
+python scripts/kepler/generar_mapa_kepler.py   # requiere: pip install keplergl
+```
+
+O, sin instalar nada: arrastra los `*_kepler.geojson` a
+[kepler.gl/demo](https://kepler.gl/demo). Detalles en
+[`scripts/kepler/README.md`](scripts/kepler/README.md).
+
+### 6. TerriaMap — globo 3D territorial
+
+Sin instalar nada, abre el catálogo en la instancia pública:
+
+```
+https://terria.io/#https://alejagoguti-cpu.github.io/tierrabomba-3d/scripts/terria/catalogo-tierrabomba.json
+```
+
+Detalles de despliegue en [`scripts/terria/README.md`](scripts/terria/README.md).
 
 ---
 
@@ -132,10 +179,15 @@ GitHub tiene límites duros que condicionan qué se puede versionar:
 
 | Tipo de archivo | Destino |
 |---|---|
-| Código, scripts, `.qml`, `.geojson`, CSV | Git normal |
-| GLB, GPKG, STL, DAE, SHP | **Git LFS** |
+| Código, scripts, `.qml`, `.geojson`, CSV, `.glb`, `.stl` | Git normal |
+| GPKG, SHP, rásters, LIDAR, `.ai`, `.psd` (originales pesados) | **Git LFS** |
 | `.rvt` canónicos, rásters grandes | **GitHub Releases** (sin cuota LFS) |
 | Backups `*.0001.rvt` … `*.0052.rvt` | ❌ **No se suben** (redundantes) |
+
+> **Por qué el GLB no está en Git LFS.** Es deliberado: pesa 40 MB, está por debajo del
+> límite de 50 MB, y dejándolo en Git normal **cualquiera puede clonar el repositorio y ver
+> el visor sin instalar `git-lfs`**. Para un repositorio público de tesis eso vale más que
+> ahorrar unos megabytes.
 
 > Los ~40 backups numerados de Revit (`TIERRABOMBA.00xx.rvt`, `TOPOGRAFIA1.00xx.rvt`)
 > pesan entre 60 y 100 MB **cada uno**. Son copias automáticas de versiones anteriores
@@ -150,14 +202,24 @@ GitHub tiene límites duros que condicionan qué se puede versionar:
 * **Modelo BIM, datos geoespaciales y documentos:** © 2026 Alejandra Gómez & Ana Casas.
   Todos los derechos reservados. El modelo 3D y los datos del territorio **no** están
   cubiertos por la licencia MIT.
+* **Capa del límite insular** (`data/ligero/limite_isla.geojson`): © OpenStreetMap
+  contributors, licencia [ODbL 1.0](https://www.openstreetmap.org/copyright).
+  **Esta atribución es obligatoria** en cualquier publicación que use la capa.
 
 **Herramientas de terceros utilizadas** (no se redistribuyen aquí):
 
-* [QGIS](https://qgis.org/) — GPL-3.0
-* [Qgis2threejs](https://github.com/minorua/Qgis2threejs) de Minoru Akagi — GPL-3.0
-* [FreeCAD](https://github.com/FreeCAD/FreeCAD) — LGPL-2.1
-* [three.js](https://threejs.org/) — MIT
-* [obj2gltf](https://github.com/CesiumGS/obj2gltf) — Apache-2.0
+| Herramienta | Licencia |
+|---|---|
+| [QGIS](https://qgis.org/) | GPL-3.0 |
+| [Qgis2threejs](https://github.com/minorua/Qgis2threejs) de Minoru Akagi | GPL-3.0 |
+| [FreeCAD](https://github.com/FreeCAD/FreeCAD) | LGPL-2.1 |
+| [three.js](https://threejs.org/) | MIT |
+| [obj2gltf](https://github.com/CesiumGS/obj2gltf) | Apache-2.0 |
+| [kepler.gl](https://github.com/keplergl/kepler.gl) | MIT |
+| [TerriaMap](https://github.com/TerriaJS/TerriaMap) / [TerriaJS](https://github.com/TerriaJS/terriajs) | Apache-2.0 |
+| [CesiumJS](https://cesium.com/platform/cesiumjs/) | Apache-2.0 |
+| [deck.gl](https://deck.gl/) | MIT |
+| Datos de [OpenStreetMap](https://www.openstreetmap.org/copyright) | ODbL 1.0 |
 
 ---
 
