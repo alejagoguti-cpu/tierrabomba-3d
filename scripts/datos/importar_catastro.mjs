@@ -812,6 +812,16 @@ log(
 log(`simplificacion: ${TOLERANCIA_SIMPLIFICACION} grados  |  precision: ${DECIMALES} decimales`);
 console.log();
 
+/**
+ * Manifiesto de procedencia.
+ *
+ * SE PARTE DEL ANTERIOR. Cada ejecución importa solo las capas que se
+ * le piden con `--solo`, así que si se empezara de cero se perdería el
+ * registro de las capas importadas antes: el panel mostraría «sin
+ * archivo» en capas que sí existen, porque el recuento vive aquí.
+ */
+const rutaManifiesto = join(SALIDA, 'manifiesto.json');
+
 const manifiesto = {
   fuente: 'Catastro oficial - Area Metropolitana de Cartagena',
   archivoOrigen: basename(rutaZip),
@@ -825,6 +835,18 @@ const manifiesto = {
   fechaImportacion: new Date().toISOString().slice(0, 10),
   capas: {},
 };
+
+if (existsSync(rutaManifiesto)) {
+  try {
+    const previo = JSON.parse(readFileSync(rutaManifiesto, 'utf8'));
+    // Se conservan las capas ya registradas; las de esta ejecución las
+    // sobrescriben más abajo con datos frescos.
+    manifiesto.capas = { ...(previo.capas ?? {}) };
+    log(`manifiesto previo: ${Object.keys(manifiesto.capas).length} capas conservadas`);
+  } catch {
+    log('AVISO: manifiesto previo ilegible; se regenera');
+  }
+}
 
 for (const clave of seleccion) {
   try {
@@ -854,12 +876,15 @@ manifiesto.nota =
 mkdirSync(SALIDA, { recursive: true });
 writeFileSync(join(SALIDA, 'manifiesto.json'), JSON.stringify(manifiesto, null, 2), 'utf8');
 
+const sinDatos = seleccion.filter((c) => !manifiesto.capas[c]);
+
 console.log('\n  ' + '='.repeat(68));
-log(`capas importadas: ${Object.keys(manifiesto.capas).length} de ${seleccion.length}`);
+log(
+  `capas importadas en esta ejecucion: ${seleccion.length - sinDatos.length} de ${seleccion.length}`
+);
+log(`capas totales en el manifiesto: ${Object.keys(manifiesto.capas).length}`);
 log(`entidades oficiales: ${manifiesto.totalEntidades.toLocaleString('es-CO')}`);
 log(`manifiesto: data/oficial/manifiesto.json`);
-
-const sinDatos = seleccion.filter((c) => !manifiesto.capas[c]);
 if (sinDatos.length) {
   log(`SIN DATOS en el ambito de la isla: ${sinDatos.join(', ')}`);
   log('(la isla puede no estar cubierta por esa capa del catastro)');

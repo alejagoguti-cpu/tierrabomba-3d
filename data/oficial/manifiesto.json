@@ -15,6 +15,90 @@
   "precisionDecimales": 5,
   "fechaImportacion": "2026-10-11",
   "capas": {
+    "manzanas": {
+      "clave": "manzanas",
+      "titulo": "Manzanas catastrales",
+      "descripcion": "Division por manzanas del catastro oficial, con su codigo y nombre.",
+      "color": "#6B9A80",
+      "archivo": "data/oficial/manzanas.geojson",
+      "entidades": 9186,
+      "entidades_en_origen": 9526,
+      "pesoKb": 3700,
+      "fechaImportacion": "2026-10-11",
+      "estadoValidacion": "oficial",
+      "camposClave": [
+        "codigo",
+        "nombre"
+      ],
+      "fuenteCapa": "Manzana.shp"
+    },
+    "barrios": {
+      "clave": "barrios",
+      "titulo": "Barrios",
+      "descripcion": "Delimitacion de barrios segun el catastro oficial.",
+      "color": "#E4D7BD",
+      "archivo": "data/oficial/barrios.geojson",
+      "entidades": 205,
+      "entidades_en_origen": 217,
+      "pesoKb": 264,
+      "fechaImportacion": "2026-10-11",
+      "estadoValidacion": "oficial",
+      "camposClave": [
+        "codigo",
+        "nombre"
+      ],
+      "fuenteCapa": "Barrio.shp"
+    },
+    "veredas": {
+      "clave": "veredas",
+      "titulo": "Veredas",
+      "descripcion": "Delimitacion de veredas (division rural) segun el catastro oficial.",
+      "color": "#527F68",
+      "archivo": "data/oficial/veredas.geojson",
+      "entidades": 168,
+      "entidades_en_origen": 251,
+      "pesoKb": 244,
+      "fechaImportacion": "2026-10-11",
+      "estadoValidacion": "oficial",
+      "camposClave": [
+        "codigo",
+        "nombre"
+      ],
+      "fuenteCapa": "Vereda.shp"
+    },
+    "sectores-rurales": {
+      "clave": "sectores-rurales",
+      "titulo": "Sectores rurales",
+      "descripcion": "Sectores rurales del catastro oficial.",
+      "color": "#3D6350",
+      "archivo": "data/oficial/sectores-rurales.geojson",
+      "entidades": 203,
+      "entidades_en_origen": 254,
+      "pesoKb": 246,
+      "fechaImportacion": "2026-10-11",
+      "estadoValidacion": "oficial",
+      "camposClave": [
+        "codigo"
+      ],
+      "fuenteCapa": "Sectorrural.shp"
+    },
+    "vias": {
+      "clave": "vias",
+      "titulo": "Vías oficiales (nomenclatura vial)",
+      "descripcion": "Red vial oficial del catastro: cada tramo con su tipo de vía y su nombre. Es la cartografía de referencia para la movilidad, distinta de la de OpenStreetMap.",
+      "color": "#F6F4EF",
+      "archivo": "data/oficial/vias.geojson",
+      "entidades": 7455,
+      "entidades_en_origen": 7759,
+      "pesoKb": 2146,
+      "fechaImportacion": "2026-10-11",
+      "estadoValidacion": "oficial",
+      "camposClave": [
+        "tipo_via",
+        "numero_via"
+      ],
+      "fuenteCapa": "Nomenclaturavial.shp"
+    },
     "construccion": {
       "clave": "construccion",
       "titulo": "Construcciones (catastro oficial)",
@@ -53,6 +137,6 @@
       "fuenteCapa": "Terreno.shp"
     }
   },
-  "totalEntidades": 5298,
+  "totalEntidades": 22515,
   "nota": "Manifiesto generado por scripts/datos/importar_catastro.mjs. Datos oficiales del catastro, recortados al ambito de Tierra Bomba y reproyectados a WGS 84. No editar a mano."
 }

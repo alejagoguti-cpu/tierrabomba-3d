@@ -26,6 +26,25 @@ const ORIGENES = [
   { id: 'oficial', ruta: RUTA_MANIFIESTO_OFICIAL, nombre: 'Catastro oficial' },
 ] as const;
 
+/**
+ * Cuenta las entidades de una capa leyendo su archivo.
+ *
+ * Es el respaldo para las capas que no aparecen en ningún manifiesto,
+ * como el límite insular, que se descarga con otro script. Devuelve
+ * `null` si el archivo no existe, para poder distinguir «sin archivo»
+ * de «cero entidades».
+ */
+function contarEntidades(rutaPublica: string): number | null {
+  const abs = resolve(RAIZ, rutaPublica.replace(/^\//, ''));
+  if (!existsSync(abs)) return null;
+  try {
+    const gj = JSON.parse(readFileSync(abs, 'utf8')) as { features?: unknown[] };
+    return Array.isArray(gj.features) ? gj.features.length : null;
+  } catch {
+    return null;
+  }
+}
+
 // ------------------------------------------------------------------
 //  Tipos del manifiesto
 // ------------------------------------------------------------------
@@ -37,6 +56,8 @@ export interface EntradaManifiesto {
   archivo: string;
   entidades: number;
   fechaDescarga: string;
+  /** El catastro usa este nombre en lugar de `fechaDescarga`. */
+  fechaImportacion?: string;
   fuente: string;
   attribution: string;
   licencia: string;
@@ -92,8 +113,12 @@ export function leerManifiesto(): Manifiesto | null {
       encontrado = true;
       fuentes.push(origen.nombre);
 
+      // Las claves se cualifican con el origen: `osm/vias` y
+      // `oficial/vias` son capas DISTINTAS y antes se pisaban entre sí,
+      // de modo que la capa del catastro mostraba el recuento de la de
+      // OpenStreetMap.
       for (const [clave, entrada] of Object.entries(m.capas ?? {})) {
-        capas[clave] = entrada;
+        capas[`${origen.id}/${clave}`] = entrada;
       }
 
       if (m.actualizado && (!actualizado || m.actualizado > actualizado)) {
@@ -143,19 +168,26 @@ export function obtenerCatalogo(): DefinicionCapa[] {
   const manifiesto = leerManifiesto();
 
   return CAPAS.map((capa) => {
-    // El manifiesto indexa por el nombre del archivo sin extensión
-    // (p. ej. "edificaciones"). El id del catálogo usa guiones.
-    const clave = capa.archivo.split('/').pop()?.replace('.geojson', '') ?? '';
+    // La clave del manifiesto es la ruta pública sin `/datos/` ni
+    // extensión: `osm/edificaciones`, `oficial/vias`, `ligero/limite_isla`.
+    const clave = capa.archivo.replace(/^\/datos\//, '').replace('.geojson', '');
     const entrada = manifiesto?.capas?.[clave];
 
-    if (!entrada) return capa;
+    if (entrada) {
+      return {
+        ...capa,
+        entidades: entrada.entidades,
+        fechaDescarga: entrada.fechaDescarga ?? entrada.fechaImportacion,
+        pesoKb: entrada.pesoKb,
+      };
+    }
 
-    return {
-      ...capa,
-      entidades: entrada.entidades,
-      fechaDescarga: entrada.fechaDescarga,
-      pesoKb: entrada.pesoKb,
-    };
+    // Respaldo: si el manifiesto no recoge la capa (por ejemplo el
+    // límite insular, que se descarga con otro script), se cuenta
+    // leyendo el archivo. Así el panel no dice «sin archivo» cuando el
+    // archivo sí existe.
+    const conteo = contarEntidades(capa.archivo);
+    return conteo === null ? capa : { ...capa, entidades: conteo };
   });
 }
 
