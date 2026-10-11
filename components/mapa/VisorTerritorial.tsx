@@ -35,13 +35,33 @@ import {
   ESTILOS_BASE,
   EXAGERACION_TERRENO,
   FUENTE_TERRENO,
+  TEXTURAS,
   especificacionesDeCapa,
   idExtrusion,
   idPunto,
   idRelleno,
   idLinea,
   idFuente,
+  idsDeCapa,
 } from '@/lib/geo/estilos';
+
+/** Carga las texturas procedurales en el mapa antes de dibujar capas. */
+async function cargarTexturas(mapa: MapaML) {
+  const entradas = Object.entries(TEXTURAS);
+  await Promise.all(
+    entradas.map(async ([nombre, ruta]) => {
+      if (mapa.hasImage(nombre)) return;
+      try {
+        const img = await mapa.loadImage(`${BASE}${ruta}`);
+        // addImage puede fallar si otra carga simultánea ya lo añadió
+        if (img?.data && !mapa.hasImage(nombre)) mapa.addImage(nombre, img.data);
+      } catch {
+        // Una textura que no carga no debe impedir ver el mapa:
+        // la capa usará su color de respaldo.
+      }
+    })
+  );
+}
 
 import { PanelCapas } from './PanelCapas';
 import { FichaElemento } from './FichaElemento';
@@ -65,6 +85,7 @@ const ORDEN_DIBUJO = [
   'catastro-unidades',
   'edificaciones',
   'catastro-construccion',
+  'catastro-vias',
   'vias',
   'equipamientos',
   'limite-isla',
@@ -75,13 +96,21 @@ const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 /** Añade el prefijo de despliegue a una ruta pública. */
 const urlPublica = (ruta: string) => `${BASE}${ruta}`;
 
-export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
+export function VisorTerritorial({
+  catalogo,
+  className = 'h-[calc(100dvh-3.5rem)]',
+}: {
+  catalogo: DefinicionCapa[];
+  /** Altura del contenedor. Permite incrustarlo en una tarjeta del panel. */
+  className?: string;
+}) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaML | null>(null);
 
   // Estado accesible desde los manejadores de MapLibre sin re-suscribir
   const visiblesRef = useRef<Set<string>>(new Set());
   const modo3dRef = useRef(true);
+  const conTexturasRef = useRef(true);
   const herramientaRef = useRef<ModoHerramienta>('navegar');
   const catalogoRef = useRef(catalogo);
   const medicionRef = useRef<PuntoMedicion[]>([]);
@@ -92,6 +121,7 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
     () => new Set(catalogo.filter((c) => c.visibleInicial).map((c) => c.id))
   );
   const [modo3d, setModo3d] = useState(true);
+  const [conTexturas, setConTexturas] = useState(true);
   const [pendienteTerreno, setPendienteTerreno] = useState(true);
   const [estiloBase, setEstiloBase] = useState<string>(ESTILOS_BASE[0].id);
   const [seleccion, setSeleccion] = useState<ElementoSeleccionado | null>(null);
@@ -122,6 +152,10 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
     herramientaRef.current = herramienta;
   }, [herramienta]);
 
+  useEffect(() => {
+    conTexturasRef.current = conTexturas;
+  }, [conTexturas]);
+
   // ------------------------------------------------------------------
   //  Montaje de fuentes y capas
   // ------------------------------------------------------------------
@@ -136,7 +170,7 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
         });
       }
       const visible = visiblesRef.current.has(capa.id);
-      for (const spec of especificacionesDeCapa(capa, modo3dRef.current)) {
+      for (const spec of especificacionesDeCapa(capa, modo3dRef.current, conTexturasRef.current)) {
         if (spec.type === 'symbol') continue;
         if (!mapa.getLayer(spec.id)) {
           mapa.addLayer({
@@ -150,7 +184,7 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
     // Pasada 2: etiquetas, siempre por encima
     for (const capa of catalogoRef.current) {
       const visible = visiblesRef.current.has(capa.id);
-      for (const spec of especificacionesDeCapa(capa, modo3dRef.current)) {
+      for (const spec of especificacionesDeCapa(capa, modo3dRef.current, conTexturasRef.current)) {
         if (spec.type !== 'symbol') continue;
         if (!mapa.getLayer(spec.id)) {
           mapa.addLayer({
@@ -234,21 +268,25 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
       }
     };
 
-    mapa.on('load', () => {
+    mapa.on('load', async () => {
       activarTerreno();
+      // Las texturas deben existir ANTES de crear las capas que las
+      // usan: MapLibre rechaza una capa cuyo patrón no esté cargado.
+      await cargarTexturas(mapa);
       montarCapas(mapa);
       setCargando(false);
     });
 
-    // Al cambiar de estilo base, MapLibre elimina las capas propias:
-    // hay que volver a montarlas.
+    // Al cambiar de estilo base, MapLibre elimina tanto las capas
+    // propias como las imágenes: hay que volver a montar todo.
     let estiloInicial = true;
-    mapa.on('style.load', () => {
+    mapa.on('style.load', async () => {
       if (estiloInicial) {
         estiloInicial = false;
         return;
       }
       activarTerreno();
+      await cargarTexturas(mapa);
       montarCapas(mapa);
     });
 
@@ -363,7 +401,7 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
 
     for (const capa of catalogo) {
       const valor = visibles.has(capa.id) ? 'visible' : 'none';
-      for (const spec of especificacionesDeCapa(capa, modo3d)) {
+      for (const spec of especificacionesDeCapa(capa, modo3d, conTexturas)) {
         if (mapa.getLayer(spec.id)) {
           mapa.setLayoutProperty(spec.id, 'visibility', valor);
         }
@@ -383,7 +421,7 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
     for (const capa of catalogo) {
       if (!CAPAS_CON_EXTRUSION.has(capa.id)) continue;
 
-      const extrusion = especificacionesDeCapa(capa, modo3d).find(
+      const extrusion = especificacionesDeCapa(capa, modo3d, conTexturas).find(
         (s) => s.type === 'fill-extrusion'
       );
       const visible = visibles.has(capa.id) ? 'visible' : 'none';
@@ -490,7 +528,7 @@ export function VisorTerritorial({ catalogo }: { catalogo: DefinicionCapa[] }) {
   );
 
   return (
-    <div className="relative h-[calc(100dvh-3.5rem)] w-full overflow-hidden bg-oceano-950">
+    <div className={`relative w-full overflow-hidden bg-oceano-950 ${className}`}>
       <div
         ref={contenedorRef}
         className="absolute inset-0"

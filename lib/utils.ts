@@ -80,3 +80,21 @@ export function siNo(valor?: string): string {
   if (valor === 'no' || valor === 'false') return 'No';
   return valor;
 }
+
+/**
+ * Formatea una fecha ISO (AAAA-MM-DD) como texto en español.
+ *
+ * Vive en utils y no en lib/datos/servidor.ts porque los componentes de
+ * cliente también la usan: aquel módulo importa `node:fs` y arrastrarlo
+ * al paquete del navegador rompería la compilación.
+ */
+export function formatearFecha(iso?: string | null): string {
+  if (!iso) return 'Información no disponible';
+  const [a, m, d] = iso.split('-');
+  if (!a || !m || !d) return iso;
+  const meses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+  return `${Number(d)} de ${meses[Number(m) - 1] ?? m} de ${a}`;
+}

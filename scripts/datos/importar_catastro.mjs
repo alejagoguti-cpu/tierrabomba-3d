@@ -94,19 +94,82 @@ const CRS_NOMBRE = 'MAGNA-SIRGAS Origen Nacional (EPSG:9377)';
  * script uso 10.285–10.415 N y capturo 77.284 construcciones de toda la
  * ciudad en lugar de las de la isla.
  */
-const AMBITO = { oeste: -75.605, sur: 10.310, este: -75.525, norte: 10.390 };
+const AMBITOS = {
+  municipal: {
+    etiqueta: 'Municipio de Cartagena de Indias (completo)',
+    caja: { oeste: -76.35, sur: 10.05, este: -75.35, norte: 10.75 },
+    poligono: 'municipio',
+    margen: 0,
+  },
+  isla: {
+    etiqueta: 'Isla de Tierra Bomba',
+    caja: { oeste: -75.605, sur: 10.31, este: -75.525, norte: 10.39 },
+    poligono: 'isla',
+    margen: 250,
+  },
+};
 
-/** Margen alrededor del poligono insular, en metros. */
-const MARGEN_ISLA_M = 250;
+/** Ambito activo. Se sustituye al arrancar segun --ambito. */
+let AMBITO = AMBITOS.isla.caja;
+
+/** Margen alrededor del poligono de recorte, en metros. */
+let MARGEN_ISLA_M = AMBITOS.isla.margen;
 
 /** Radio de la Tierra para estimar distancias en la validacion. */
 const MARGEN_M = 800;
 
+/** Tolerancia por defecto cuando la capa no define la suya. */
+const TOLERANCIA_SIMPLIFICACION = 0.00002;
+
+/**
+ * Poda de atributos y simplificación por capa.
+ *
+ * El catastro trae muchos campos de gestión interna que la plataforma
+ * no usa. En capas de cientos de miles de elementos, cada campo de 30
+ * caracteres cuesta varios megabytes: publicarlos todos hace que el
+ * archivo no se pueda cargar en un navegador.
+ *
+ * `atributos: null` conserva todos los campos (capas pequeñas).
+ * `tolerancia` en grados; 0,00005 ≈ 5,5 m.
+ */
+const AJUSTES_POR_CAPA = {
+  // Tolerancia mayor en el ambito municipal: con 180.000 construcciones,
+  // cada vertice cuenta. 0,0001 grados ~ 11 m sigue siendo suficiente
+  // para leer la forma de una manzana a escala de ciudad.
+  construccion: {
+    atributos: ['codigo', 'altura_tot', 'total_piso', 'area_total', 'tipo_const'],
+    tolerancia: 0.0001,
+  },
+  // CAPA DESCARTADA. Unidades de construccion: 368.589 elementos y
+  // 137 MB. Es un desglose interior de cada construccion (plantas,
+  // dominio) que se solapa con `construccion` y no aporta nada al
+  // visor 3D ni al panel. A escala de isla si es manejable.
+  predios: {
+    atributos: ['codigo', 'Manzana', 'condicion'],
+    tolerancia: 0.00008,
+  },
+  manzanas: { atributos: null, tolerancia: 0.00004 },
+  barrios: { atributos: null, tolerancia: TOLERANCIA_SIMPLIFICACION },
+  veredas: { atributos: null, tolerancia: TOLERANCIA_SIMPLIFICACION },
+  'sectores-rurales': { atributos: null, tolerancia: TOLERANCIA_SIMPLIFICACION },
+  vias: { atributos: null, tolerancia: 0.00001 },
+};
+
+/**
+ * Capas que no se importan en el ambito municipal por tamano.
+ * Se comprueba al arrancar y se avisa en lugar de generar un archivo
+ * que ningun navegador podria cargar.
+ */
+const EXCLUIDAS_MUNICIPAL = new Set(['unidades-construccion']);
+
+/** Decimales de las coordenadas publicadas. 5 ~ 1,1 m: sobra para catastro. */
+const DECIMALES = 5;
+
 // ------------------------------------------------------------------
-//  POLIGONO DE LA ISLA
-//  Se usa el limite descargado de OpenStreetMap (relation/11226348),
-//  que ya esta en WGS 84. Sirve para descartar todo lo que el catastro
-//  tiene en el continente y en el resto del municipio.
+//  POLIGONO DE RECORTE
+//  Para la isla se usa el limite de OpenStreetMap (relation/11226348),
+//  ya en WGS 84. Para el municipio completo se usa el propio shapefile
+//  oficial Limitemunicipio, reproyectado.
 // ------------------------------------------------------------------
 function cargarPoligonoIsla() {
   const ruta = resolve(RAIZ, 'data/ligero/limite_isla.geojson');
@@ -115,6 +178,34 @@ function cargarPoligonoIsla() {
     const gj = JSON.parse(readFileSync(ruta, 'utf8'));
     return gj.features?.[0]?.geometry ?? null;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * Lee Limitemunicipio.shp y devuelve el poligono de Cartagena en WGS 84.
+ * Es el recorte correcto para el ambito municipal: mejor que una caja,
+ * porque el termino municipal tiene una forma muy irregular (islas,
+ * bahias y enclaves).
+ */
+async function cargarPoligonoMunicipio(carpetaShp) {
+  const shp = join(carpetaShp, 'Limitemunicipio.shp');
+  const dbf = join(carpetaShp, 'Limitemunicipio.dbf');
+  if (!existsSync(shp)) return null;
+
+  try {
+    const fuente = await shapefile.open(shp, dbf, { encoding: 'utf-8' });
+    const r = await fuente.read();
+    if (r.done || !r.value?.geometry) return null;
+
+    const geom = r.value.geometry;
+    reproyectar(geom);
+
+    const municipio = String(r.value.properties?.nombre_mun ?? '');
+    log(`poligono municipal cargado: ${municipio || '(sin nombre)'}`);
+    return geom;
+  } catch (e) {
+    log(`AVISO: no se pudo leer Limitemunicipio: ${e.message}`);
     return null;
   }
 }
@@ -184,20 +275,23 @@ function metrosAGrados(metros, lat) {
 }
 
 /**
- * ¿El elemento pertenece a la isla?
+ * ¿El elemento pertenece al ámbito de recorte?
  *
  * Se comprueba el centro y ocho puntos separados `MARGEN_ISLA_M` a su
- * alrededor. Asi un predio costero cuyo centro cae en el mar pero que
- * toca la isla sigue contando: es un margen efectivo, no una simple
+ * alrededor. Así un predio costero cuyo centro cae en el mar pero que
+ * toca el ámbito sigue contando: es un margen efectivo, no una simple
  * prueba de punto.
+ *
+ * Si no hay polígono de recorte se devuelve `true` (no se filtra): la
+ * caja de prefiltro ya habrá hecho su trabajo.
  */
-function dentroDeLaIsla(geom, poligonoIsla) {
-  if (!poligonoIsla) return true; // sin poligono: no se filtra
+function dentroDelAmbito(geom, poligonoRecorte) {
+  if (!poligonoRecorte) return true;
 
   const centro = centroDe(geom);
   if (!centro) return false;
 
-  if (puntoEnGeometria(centro, poligonoIsla)) return true;
+  if (puntoEnGeometria(centro, poligonoRecorte)) return true;
 
   const [dLon, dLat] = metrosAGrados(MARGEN_ISLA_M, centro[1]);
   const radios = [
@@ -206,7 +300,7 @@ function dentroDeLaIsla(geom, poligonoIsla) {
   ];
 
   return radios.some(([dx, dy]) =>
-    puntoEnGeometria([centro[0] + dx, centro[1] + dy], poligonoIsla)
+    puntoEnGeometria([centro[0] + dx, centro[1] + dy], poligonoRecorte)
   );
 }
 
@@ -265,6 +359,15 @@ const CAPAS = {
     color: '#3D6350',
     geometria: 'poligono',
     camposClave: ['codigo'],
+  },
+  vias: {
+    archivo: 'Nomenclaturavial',
+    titulo: 'Vías oficiales (nomenclatura vial)',
+    descripcion:
+      'Red vial oficial del catastro: cada tramo con su tipo de vía y su nombre. Es la cartografía de referencia para la movilidad, distinta de la de OpenStreetMap.',
+    color: '#F6F4EF',
+    geometria: 'linea',
+    camposClave: ['tipo_via', 'numero_via'],
   },
   'unidades-construccion': {
     archivo: 'Unidad_construccion',
@@ -341,12 +444,13 @@ function intersecta(caja, nativa) {
 
 /** Reproyecta todas las coordenadas de una geometria, in situ. */
 function reproyectar(geometria) {
+  const factor = 10 ** DECIMALES;
+
   const transformar = (c) => {
     if (typeof c[0] === 'number') {
       const [lng, lat] = proj4(CRS_ORIGEN, CRS_DESTINO, [c[0], c[1]]);
-      // 6 decimales ~ 11 cm: sobra para cartografia catastral
-      c[0] = Math.round(lng * 1e6) / 1e6;
-      c[1] = Math.round(lat * 1e6) / 1e6;
+      c[0] = Math.round(lng * factor) / factor;
+      c[1] = Math.round(lat * factor) / factor;
       return c;
     }
     return c.map(transformar);
@@ -356,13 +460,107 @@ function reproyectar(geometria) {
   return geometria;
 }
 
-/** Limpia valores nulos o vacios de las propiedades. */
-function limpiarProps(props) {
+/**
+ * Simplifica un anillo con Douglas-Peucker.
+ *
+ * Con 185.000 construcciones en el ambito municipal, cada vertice
+ * cuenta: quitar los redundantes reduce el archivo a la mitad sin
+ * que se note a escala urbana.
+ */
+function simplificarAnillo(anillo, tolerancia) {
+  if (!Array.isArray(anillo) || anillo.length < 4) return anillo;
+
+  const distancia = (p, a, b) => {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    if (dx === 0 && dy === 0) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+    const t = Math.max(
+      0,
+      Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy))
+    );
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+  };
+
+  const dp = (puntos) => {
+    if (puntos.length <= 2) return puntos;
+    let maxD = 0;
+    let idx = 0;
+    const primero = puntos[0];
+    const ultimo = puntos[puntos.length - 1];
+
+    for (let i = 1; i < puntos.length - 1; i++) {
+      const d = distancia(puntos[i], primero, ultimo);
+      if (d > maxD) {
+        maxD = d;
+        idx = i;
+      }
+    }
+
+    if (maxD > tolerancia) {
+      const izq = dp(puntos.slice(0, idx + 1));
+      const der = dp(puntos.slice(idx));
+      return izq.slice(0, -1).concat(der);
+    }
+    return [primero, ultimo];
+  };
+
+  // Un anillo cerrado tiene el primer y el ultimo punto iguales: se
+  // simplifica el interior y se vuelve a cerrar.
+  const cerrado =
+    anillo[0][0] === anillo[anillo.length - 1][0] &&
+    anillo[0][1] === anillo[anillo.length - 1][1];
+
+  const cuerpo = cerrado ? anillo.slice(0, -1) : anillo;
+  const simplificado = dp(cuerpo);
+
+  if (simplificado.length < 4) return anillo; // demasiado agresivo: se descarta
+  return cerrado ? [...simplificado, simplificado[0]] : simplificado;
+}
+
+/** Aplica la simplificacion a todos los anillos de una geometria. */
+function simplificar(geometria, tolerancia = TOLERANCIA_SIMPLIFICACION) {
+  if (!geometria?.coordinates) return geometria;
+
+  if (geometria.type === 'Polygon') {
+    geometria.coordinates = geometria.coordinates.map((a) => simplificarAnillo(a, tolerancia));
+  } else if (geometria.type === 'MultiPolygon') {
+    geometria.coordinates = geometria.coordinates.map((poli) =>
+      poli.map((a) => simplificarAnillo(a, tolerancia))
+    );
+  }
+  return geometria;
+}
+
+/**
+ * Limpia valores nulos o vacios de las propiedades.
+ *
+ * @param props      Propiedades originales del shapefile.
+ * @param permitidos Lista blanca de campos. `null` conserva todos.
+ *
+ * Ademas convierte a numero los valores que lo son: en un archivo de
+ * cientos de miles de elementos, quitar las comillas de un campo
+ * numerico ahorra megabytes.
+ */
+function limpiarProps(props, permitidos = null) {
   const salida = {};
   for (const [k, v] of Object.entries(props ?? {})) {
     if (v === null || v === undefined || v === '') continue;
     const clave = String(k).trim();
-    salida[clave] = typeof v === 'string' ? v.trim() : v;
+    if (permitidos && !permitidos.includes(clave)) continue;
+
+    if (typeof v === 'string') {
+      const t = v.trim();
+      if (!t) continue;
+      // Numero puro: se guarda como numero
+      if (/^-?\d+(\.\d+)?$/.test(t)) {
+        const n = Number(t);
+        salida[clave] = Number.isFinite(n) ? n : t;
+      } else {
+        salida[clave] = t;
+      }
+      continue;
+    }
+    salida[clave] = v;
   }
   return salida;
 }
@@ -416,7 +614,7 @@ async function asegurarShapefiles(rutaZip) {
 // ------------------------------------------------------------------
 //  Importacion de una capa
 // ------------------------------------------------------------------
-async function importarCapa(clave, definicion, carpetaShp, cajaNativa, nombreZip, poligonoIsla) {
+async function importarCapa(clave, definicion, carpetaShp, cajaNativa, nombreZip, poligonoRecorte) {
   const shp = join(carpetaShp, `${definicion.archivo}.shp`);
   const dbf = join(carpetaShp, `${definicion.archivo}.dbf`);
 
@@ -427,6 +625,12 @@ async function importarCapa(clave, definicion, carpetaShp, cajaNativa, nombreZip
 
   const t0 = Date.now();
   const fuente = await shapefile.open(shp, dbf, { encoding: 'utf-8' });
+
+  // Poda de atributos y tolerancia de simplificacion de esta capa
+  const ajustes = AJUSTES_POR_CAPA[clave] ?? {
+    atributos: null,
+    tolerancia: TOLERANCIA_SIMPLIFICACION,
+  };
 
   const features = [];
   let leidos = 0;
@@ -449,20 +653,24 @@ async function importarCapa(clave, definicion, carpetaShp, cajaNativa, nombreZip
       continue;
     }
 
-    // 2) Recorte real contra el poligono de la isla. Hace falta
-    //    reproyectar para poder comparar con el limite en WGS 84.
+    // 2) Recorte real contra el poligono de recorte. Hace falta
+    //    reproyectar para poder comparar en WGS 84.
     reproyectar(geom);
 
-    if (!dentroDeLaIsla(geom, poligonoIsla)) {
+    if (!dentroDelAmbito(geom, poligonoRecorte)) {
       fueraDeIsla++;
       continue;
     }
+
+    // 3) Simplificacion: quita vertices redundantes. En el ambito
+    //    municipal esto reduce el archivo a la mitad o mas.
+    simplificar(geom, ajustes.tolerancia);
 
     features.push({
       type: 'Feature',
       // Identificador catastral si existe; si no, el indice de lectura
       id: r.value.properties?.codigo ?? `${clave}-${leidos}`,
-      properties: limpiarProps(r.value.properties),
+      properties: limpiarProps(r.value.properties, ajustes.atributos),
       geometry: geom,
     });
   }
@@ -530,14 +738,43 @@ async function importarCapa(clave, definicion, carpetaShp, cajaNativa, nombreZip
 // ------------------------------------------------------------------
 //  Principal
 // ------------------------------------------------------------------
+const argAmbito = process.argv.indexOf('--ambito');
+const ambitoId = argAmbito !== -1 ? process.argv[argAmbito + 1] : 'municipal';
+
+if (!AMBITOS[ambitoId]) {
+  console.error(`\n  ERROR: ambito desconocido: ${ambitoId}`);
+  console.error(`  Disponibles: ${Object.keys(AMBITOS).join(', ')}\n`);
+  process.exit(1);
+}
+
+const ambito = AMBITOS[ambitoId];
+AMBITO = ambito.caja;
+MARGEN_ISLA_M = ambito.margen;
+
 const argZip = process.argv.indexOf('--zip');
 const rutaZip = argZip !== -1 ? process.argv[argZip + 1] : RUTA_ZIP_POR_DEFECTO;
 
 const argSolo = process.argv.indexOf('--solo');
-const seleccion =
+const seleccionBase =
   argSolo !== -1 && process.argv[argSolo + 1]
     ? process.argv[argSolo + 1].split(',').map((s) => s.trim())
     : Object.keys(CAPAS);
+
+// Excluir las capas inviables en el ambito municipal (ver EXCLUIDAS_MUNICIPAL)
+const seleccion = seleccionBase.filter((c) => {
+  if (ambitoId === 'municipal' && EXCLUIDAS_MUNICIPAL.has(c) && argSolo === -1) {
+    return false;
+  }
+  return true;
+});
+
+const excluidas = seleccionBase.filter((c) => !seleccion.includes(c));
+if (excluidas.length) {
+  console.log(
+    `  AVISO: ${excluidas.join(', ')} no se importa en el ambito municipal ` +
+      `(demasiado grande para un navegador).`
+  );
+}
 
 const invalidas = seleccion.filter((c) => !CAPAS[c]);
 if (invalidas.length) {
@@ -550,28 +787,29 @@ console.log('\n  Importacion del catastro oficial de Cartagena');
 console.log('  ' + '='.repeat(68));
 console.log(`  Origen   : ${rutaZip}`);
 console.log(`  CRS      : ${CRS_NOMBRE}  ->  WGS 84`);
-console.log(
-  `  Ambito   : ${AMBITO.sur} a ${AMBITO.norte} N   ${AMBITO.oeste} a ${AMBITO.este} O`
-);
+console.log(`  Ambito   : ${ambito.etiqueta}`);
 console.log(`  Capas    : ${seleccion.join(', ')}\n`);
 
 const carpetaShp = await asegurarShapefiles(rutaZip);
 const cajaNativa = calcularCajaNativa();
-const poligonoIsla = cargarPoligonoIsla();
 
-if (!poligonoIsla) {
-  log('AVISO: no se encontro data/ligero/limite_isla.geojson');
-  log('       se filtrara solo por caja envolvente, lo que incluira');
-  log('       parte del casco urbano de Cartagena.');
-  log('       Ejecuta antes:  npm run datos:limite');
-} else {
-  log('poligono de la isla cargado: recorte por geometria activo');
+// Poligono de recorte: el municipio oficial o el limite insular
+const poligonoRecorte =
+  ambito.poligono === 'municipio'
+    ? await cargarPoligonoMunicipio(carpetaShp)
+    : cargarPoligonoIsla();
+
+if (!poligonoRecorte) {
+  log('AVISO: no se pudo cargar el poligono de recorte.');
+  log('       Se filtrara solo por caja envolvente, lo que incluira');
+  log('       elementos de fuera del ambito de estudio.');
 }
 
 log(
   `caja nativa calculada: X ${cajaNativa.minX.toFixed(0)}…${cajaNativa.maxX.toFixed(0)}  ` +
     `Y ${cajaNativa.minY.toFixed(0)}…${cajaNativa.maxY.toFixed(0)}`
 );
+log(`simplificacion: ${TOLERANCIA_SIMPLIFICACION} grados  |  precision: ${DECIMALES} decimales`);
 console.log();
 
 const manifiesto = {
@@ -579,7 +817,11 @@ const manifiesto = {
   archivoOrigen: basename(rutaZip),
   crsOriginal: CRS_NOMBRE,
   crsPublicado: 'EPSG:4326',
-  ambito: AMBITO,
+  ambito: ambito.etiqueta,
+  ambitoId,
+  cajaTrabajo: AMBITO,
+  simplificacionGrados: TOLERANCIA_SIMPLIFICACION,
+  precisionDecimales: DECIMALES,
   fechaImportacion: new Date().toISOString().slice(0, 10),
   capas: {},
 };
@@ -592,7 +834,7 @@ for (const clave of seleccion) {
       carpetaShp,
       cajaNativa,
       basename(rutaZip),
-      poligonoIsla
+      poligonoRecorte
     );
     if (entrada) manifiesto.capas[clave] = entrada;
   } catch (e) {

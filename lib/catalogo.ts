@@ -25,7 +25,7 @@ export const CATEGORIAS = [
     id: 'catastro',
     titulo: 'Catastro oficial',
     descripcion:
-      'Cartografía catastral del área metropolitana de Cartagena, recortada a la isla y reproyectada a WGS 84.',
+      'Cartografía catastral del área metropolitana de Cartagena, reproyectada a WGS 84. Las construcciones y predios se publican con detalle para la isla de Tierra Bomba; las manzanas, vías y divisiones administrativas cubren todo el municipio.',
     icono: 'catastro',
   },
   {
@@ -208,6 +208,24 @@ export const CAPAS: DefinicionCapa[] = [
     estadoValidacion: 'oficial',
     limitaciones:
       'No incluye avalúo, propietario ni destino económico: solo la geometría y el código catastral. Para información jurídica o fiscal hay que acudir a la entidad catastral.',
+  },
+  {
+    id: 'catastro-vias',
+    titulo: 'Vías oficiales (catastro)',
+    descripcion:
+      'Red vial oficial del catastro para todo el municipio: cada tramo con su tipo de vía y su nombre. Es la cartografía de referencia para movilidad, distinta de la de OpenStreetMap.',
+    categoria: 'catastro',
+    archivo: '/datos/oficial/vias.geojson',
+    color: '#F6F4EF',
+    geometria: 'linea',
+    visibleInicial: true,
+    fuente: 'Catastro oficial · Área Metropolitana de Cartagena',
+    fuenteUrl: 'https://www.cartagena.gov.co/',
+    licencia: 'Uso institucional — verificar condiciones con la entidad productora',
+    attribution: 'Catastro municipal de Cartagena de Indias',
+    estadoValidacion: 'oficial',
+    limitaciones:
+      'Es la nomenclatura vial catastral: representa el eje de la vía y su denominación, no el ancho ni el estado del firme. No incluye jerarquía funcional ni sentidos de circulación.',
   },
   {
     id: 'catastro-manzanas',

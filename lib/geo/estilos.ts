@@ -11,6 +11,58 @@ import type { LayerSpecification } from 'maplibre-gl';
 import type { DefinicionCapa } from '@/lib/catalogo';
 
 /**
+ * Texturas procedurales del visor.
+ *
+ * Se generan con `python scripts/datos/generar_texturas.py`: son sin
+ * costura y de licencia libre, así que no hay que citar a nadie.
+ *
+ * SOBRE EL MATERIAL DE CUBIERTA
+ *   El caserío de Tierra Bomba NO usa teja de barro: usa lámina de
+ *   acero corrugado (zinc). Por eso la textura por defecto de las
+ *   construcciones es `acero`. La teja de barro se reserva al centro
+ *   histórico y los sectores consolidados.
+ *
+ *   El catastro NO registra el material de cubierta de cada
+ *   edificación, así que la textura es una representación tipológica,
+ *   no un dato por edificio. Así se declara en la interfaz.
+ */
+export const TEXTURAS = {
+  acero: '/texturas/acero.png',
+  teja: '/texturas/teja.png',
+  muro: '/texturas/muro.png',
+  vegetacion: '/texturas/vegetacion.png',
+  arena: '/texturas/arena.png',
+  agua: '/texturas/agua.png',
+  adoquin: '/texturas/adoquin.png',
+  tierra: '/texturas/tierra.png',
+} as const;
+
+export type NombreTextura = keyof typeof TEXTURAS;
+
+/** Patrón de relleno que corresponde a cada capa del catálogo. */
+export function texturaDeCapa(capa: DefinicionCapa): NombreTextura | null {
+  switch (capa.id) {
+    case 'catastro-construccion':
+    case 'catastro-unidades':
+    case 'edificaciones':
+      // Cubierta de zinc: la tipología real de la isla
+      return 'acero';
+    case 'natural':
+      return 'vegetacion';
+    case 'usos-suelo':
+      return 'vegetacion';
+    case 'hidrografia':
+      return 'agua';
+    case 'vias':
+      return 'adoquin';
+    case 'catastro-manzanas':
+      return 'tierra';
+    default:
+      return null;
+  }
+}
+
+/**
  * Altura en metros que se aplica a las edificaciones de OpenStreetMap
  * SIN altura registrada al extruirlas en 3D.
  *
@@ -93,11 +145,16 @@ export function idsDeCapa(capa: DefinicionCapa): string[] {
 export function especificacionesDeCapa(
   capa: DefinicionCapa,
   modo3d: boolean,
+  conTexturas = true,
   antesDe?: string
 ): LayerSpecification[] {
   const fuente = idFuente(capa.id);
   const capas: LayerSpecification[] = [];
   const comun = antesDe ? { beforeId: antesDe } : {};
+  // El interruptor de texturas permite alternar entre la lectura
+  // tipológica (axonomía con materiales) y la lectura analítica
+  // (rampa de color por altura).
+  const textura = conTexturas ? texturaDeCapa(capa) : null;
 
   const esPunto = capa.geometria === 'punto' || capa.geometria === 'mixta';
   const esLinea = capa.geometria === 'linea' || capa.geometria === 'mixta';
@@ -111,8 +168,14 @@ export function especificacionesDeCapa(
       source: fuente,
       filter: ['==', ['geometry-type'], 'Polygon'],
       paint: {
+        // El patrón sustituye al color plano cuando la capa tiene
+        // textura asignada. Se deja el color como respaldo por si la
+        // imagen no llegara a cargarse.
+        ...(textura && capa.id !== 'limite-isla'
+          ? { 'fill-pattern': textura }
+          : {}),
         'fill-color': capa.color,
-        'fill-opacity': capa.id === 'limite-isla' ? 0.08 : 0.42,
+        'fill-opacity': capa.id === 'limite-isla' ? 0.08 : textura ? 0.85 : 0.42,
         'fill-outline-color': 'transparent',
       },
       layout: { visibility: 'visible' },
@@ -182,6 +245,9 @@ export function especificacionesDeCapa(
       source: fuente,
       filter: ['==', ['geometry-type'], 'Polygon'],
       paint: {
+        // Con textura, la cubierta se lee por su material (lámina de
+        // acero corrugado). Sin textura, el color codifica la altura.
+        ...(textura ? { 'fill-extrusion-pattern': textura } : {}),
         // Con dato oficial la rampa va de un marrón terroso a un
         // blanco cálido; con la aproximación, tonos más apagados para
         // que se distinga de un vistazo qué capa es dato y cuál no.
@@ -204,7 +270,7 @@ export function especificacionesDeCapa(
             ],
         'fill-extrusion-height': esOficial ? EXPRESION_ALTURA_OFICIAL : EXPRESION_ALTURA,
         'fill-extrusion-base': 0,
-        'fill-extrusion-opacity': esOficial ? 0.94 : 0.7,
+        'fill-extrusion-opacity': textura ? 1 : esOficial ? 0.94 : 0.7,
       },
       layout: { visibility: 'visible' },
       ...comun,

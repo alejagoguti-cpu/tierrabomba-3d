@@ -38,6 +38,7 @@ const ICONO_CAPA: Record<string, typeof MapIcon> = {
   'usos-suelo': Layers,
   'catastro-construccion': Building2,
   'catastro-predios': LandPlot,
+  'catastro-vias': Route,
   'catastro-manzanas': Layers,
   'catastro-barrios': MapIcon,
   'catastro-veredas': Leaf,

@@ -21,8 +21,11 @@
   },
   "dependencies": {
     "@turf/area": "7.4.0",
+    "@turf/difference": "^7.4.0",
     "@turf/helpers": "7.4.0",
+    "@turf/intersect": "^7.4.0",
     "@turf/length": "7.4.0",
+    "@turf/union": "^7.4.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.55.0",
     "maplibre-gl": "^6.13.0",
