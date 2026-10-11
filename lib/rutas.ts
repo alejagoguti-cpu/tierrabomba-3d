@@ -46,7 +46,7 @@ export const RUTAS: RutaApp[] = [
     href: '/analisis',
     titulo: 'Análisis',
     descripcion: 'Herramientas territoriales: cobertura, accesibilidad y pendientes.',
-    estado: 'en-desarrollo',
+    estado: 'listo',
   },
   {
     href: '/participa',
