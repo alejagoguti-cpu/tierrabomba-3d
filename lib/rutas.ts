@@ -40,7 +40,7 @@ export const RUTAS: RutaApp[] = [
     href: '/ambiente',
     titulo: 'Ambiente',
     descripcion: 'Vegetación, hidrografía y elementos naturales cartografiados.',
-    estado: 'en-desarrollo',
+    estado: 'listo',
   },
   {
     href: '/analisis',
